@@ -1,0 +1,24 @@
+<!-- templates/index.html -->
+{% extends "base.html" %}
+
+{% block content %}
+<h2 class="text-3xl font-bold mb-8">Welcome to Portfolio Manager</h2>
+<div class="grid grid-cols-1 md:grid-cols-2 gap-8">
+    <div class="bg-gray-800 p-6 rounded-lg">
+        <h3 class="text-xl font-bold mb-4">Stock Analysis</h3>
+        <p class="mb-4">Analyze individual stocks, view historical data, and get key metrics.</p>
+        <a href="/stock-analysis" class="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700">Get Started</a>
+    </div>
+    <div class="bg-gray-800 p-6 rounded-lg">
+        <h3 class="text-xl font-bold mb-4">Portfolio Optimizer</h3>
+        <p class="mb-4">Optimize your portfolio using modern portfolio theory.</p>
+        <a href="/portfolio-optimizer" class="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700">Get
+            Started</a>
+    </div>
+    <div class="bg-gray-800 p-6 rounded-lg">
+        <h3 class="text-xl font-bold mb-4">Backtesting</h3>
+        <p class="mb-4">Test your portfolio strategy against historical data.</p>
+        <a href="/backtesting" class="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700">Get Started</a>
+    </div>
+</div>
+{% endblock %}

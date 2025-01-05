@@ -1,0 +1,93 @@
+<!-- templates/stock_analysis.html -->
+{% extends "base.html" %}
+
+{% block title %}Stock Analysis - Portfolio Manager{% endblock %}
+
+{% block content %}
+<h2 class="text-3xl font-bold mb-8">Stock Analysis</h2>
+
+<div class="mb-8">
+    <input type="text" id="ticker" placeholder="Enter stock ticker (e.g., AAPL)"
+        class="bg-gray-700 text-white p-2 rounded">
+    <button onclick="analyzeStock()"
+        class="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700 ml-2">Analyze</button>
+</div>
+
+<div id="results" class="hidden">
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-8 mb-8">
+        <div class="bg-gray-800 p-6 rounded-lg">
+            <h3 class="text-xl font-bold mb-4">Basic Information</h3>
+            <div id="basicInfo"></div>
+        </div>
+        <div class="bg-gray-800 p-6 rounded-lg">
+            <h3 class="text-xl font-bold mb-4">Key Metrics</h3>
+            <div id="keyMetrics"></div>
+        </div>
+    </div>
+
+    <div class="bg-gray-800 p-6 rounded-lg mb-8">
+        <h3 class="text-xl font-bold mb-4">Stock Price Chart</h3>
+        <div id="priceChart"></div>
+    </div>
+
+    <div class="bg-gray-800 p-6 rounded-lg">
+        <h3 class="text-xl font-bold mb-4">Latest News</h3>
+        <ul id="stockNews" class="space-y-2"></ul>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    async function analyzeStock() {
+        const ticker = document.getElementById('ticker').value.toUpperCase();
+        document.getElementById('results').classList.add('hidden');
+
+        try {
+            const response = await fetch(`/api/stock-info/${ticker}`);
+            const data = await response.json();
+
+            if (data.success) {
+                document.getElementById('results').classList.remove('hidden');
+
+                // Display basic info
+                const info = data.info;
+                document.getElementById('basicInfo').innerHTML = `
+                    <p><strong>Name:</strong> ${info.name}</p>
+                    <p><strong>Sector:</strong> ${info.sector}</p>
+                    <p><strong>Market Cap:</strong> $${(info.market_cap / 1e9).toFixed(2)}B</p>
+                `;
+
+                // Display key metrics
+                document.getElementById('keyMetrics').innerHTML = `
+                    <p><strong>P/E Ratio:</strong> ${info.pe_ratio?.toFixed(2) || 'N/A'}</p>
+                    <p><strong>Dividend Yield:</strong> ${info.dividend_yield ? (info.dividend_yield * 100).toFixed(2) + '%' : 'N/A'}</p>
+                    <p><strong>Beta:</strong> ${info.beta?.toFixed(2) || 'N/A'}</p>
+                    <p><strong>Profit Margin:</strong> ${info.profit_margin?.toFixed(2) || 'N/A'}</p>
+                    <p><strong>Debt/Equity Ratio:</strong> ${info.debt_to_equity?.toFixed(2) || 'N/A'}</p>
+                    <p><strong>Return on Equity (ROE):</strong> ${info.roe?.toFixed(2) || 'N/A'}</p>
+                    <p><strong>Return on Assets (ROA):</strong> ${info.roa?.toFixed(2) || 'N/A'}</p>
+                `;
+
+                // Display price chart
+                const chartData = JSON.parse(data.chart);
+                Plotly.newPlot('priceChart', chartData.data, chartData.layout);
+
+                // Display stock news
+                document.getElementById('stockNews').innerHTML = data.news.map(article => `
+                    <li>
+                        <a href="${article.link}" target="_blank" class="text-blue-400 hover:underline">
+                            ${article.title}
+                        </a>
+                    </li>
+                `).join('');
+            } else {
+                alert('Error: ' + data.error);
+            }
+        } catch (error) {
+            console.error(error);
+            alert('Failed to fetch stock data.');
+        }
+    }
+</script>
+{% endblock %}

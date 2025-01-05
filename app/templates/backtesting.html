@@ -1,0 +1,145 @@
+<!-- templates/backtesting.html -->
+{% extends "base.html" %}
+
+{% block title %}Backtesting - Portfolio Manager{% endblock %}
+
+{% block content %}
+<h2 class="text-3xl font-bold mb-8">Backtesting</h2>
+
+<div class="bg-gray-800 p-6 rounded-lg mb-8">
+    <form id="backtestForm" class="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <div>
+            <label class="block mb-2">Tickers (comma-separated)</label>
+            <input type="text" id="tickers" required class="w-full bg-gray-700 p-2 rounded"
+                placeholder="AAPL,MSFT,GOOGL">
+        </div>
+        <div>
+            <label class="block mb-2">Initial Capital ($)</label>
+            <input type="number" id="initialCapital" required class="w-full bg-gray-700 p-2 rounded" value="10000">
+        </div>
+        <div>
+            <label class="block mb-2">Start Year</label>
+            <input type="number" id="startYear" required class="w-full bg-gray-700 p-2 rounded" value="2020">
+        </div>
+        <div>
+            <label class="block mb-2">Lookback Months</label>
+            <input type="number" id="lookbackMonths" required class="w-full bg-gray-700 p-2 rounded" value="6">
+        </div>
+        <div>
+            <label class="block mb-2">Total Months</label>
+            <input type="number" id="totalMonths" required class="w-full bg-gray-700 p-2 rounded" value="36">
+        </div>
+        <div>
+            <label class="block mb-2">Target Return (optional, %)</label>
+            <input type="number" id="targetReturn" step="0.1" class="w-full bg-gray-700 p-2 rounded" placeholder="15">
+        </div>
+        <div class="flex items-end">
+            <button type="submit" class="bg-blue-600 text-white px-6 py-2 rounded hover:bg-blue-700">
+                Run Backtest
+            </button>
+        </div>
+    </form>
+</div>
+
+<!-- Loading Spinner -->
+<div id="loading" class="hidden flex justify-center items-center">
+    <p class="text-center text-xl">Backtest Running...</p>
+</div>
+
+<div id="results" class="hidden">
+    <div class="bg-gray-800 p-6 rounded-lg mb-8">
+        <div id="performanceChart"></div>
+    </div>
+
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
+        <div class="bg-gray-800 p-6 rounded-lg">
+            <h3 class="text-2xl font-bold mb-6">Strategy Performance Comparison</h3>
+            <div id="strategyResults" class="space-y-6">
+                <!-- Dynamically generated strategy comparison will go here -->
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    document.getElementById('backtestForm').addEventListener('submit', async function (e) {
+        e.preventDefault();
+
+        const formData = {
+            tickers: document.getElementById('tickers').value.split(',').map(t => t.trim()),
+            initial_capital: document.getElementById('initialCapital').value,
+            start_year: document.getElementById('startYear').value,
+            lookback_months: document.getElementById('lookbackMonths').value,
+            total_months: document.getElementById('totalMonths').value,
+            target_return: document.getElementById('targetReturn').value ?
+                document.getElementById('targetReturn').value / 100 : null
+        };
+
+        // Show loading indicator
+        document.getElementById('loading').classList.remove('hidden');
+        document.getElementById('results').classList.add('hidden');
+
+        try {
+            const response = await fetch('/api/backtest', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify(formData)
+            });
+
+            const data = await response.json();
+
+            if (data.success) {
+                // Hide loading, show results
+                document.getElementById('loading').classList.add('hidden');
+                document.getElementById('results').classList.remove('hidden');
+
+                // Display performance chart
+                const chartData = JSON.parse(data.chart);
+                Plotly.newPlot('performanceChart', chartData.data, chartData.layout);
+
+                // Display strategy comparison
+                let resultsHtml = '<div class="grid grid-cols-1 md:grid-cols-2 gap-6">';
+                for (const [strategy, metrics] of Object.entries(data.summary)) {
+                    resultsHtml += `
+                        <div class="bg-gray-700 p-6 rounded-lg shadow-lg">
+                            <h4 class="text-xl font-bold text-center text-indigo-500 mb-4">${strategy.replace('_', ' ').toUpperCase()}</h4>
+                            <div class="space-y-4">
+                    `;
+                    for (const [metric, value] of Object.entries(metrics)) {
+                        const formattedValue = metric.includes('value') ?
+                            `$${value.toFixed(2)}` : `${(value * 100).toFixed(2)}%`;
+
+                        let metricColor = "text-gray-300";
+                        if (metric.includes("return") && value > 0) {
+                            metricColor = "text-green-400";
+                        } else if (metric.includes("return") && value < 0) {
+                            metricColor = "text-red-400";
+                        }
+                        if (metric.includes("drawdown") && value > 0) {
+                            metricColor = "text-red-400";
+                        }
+
+                        resultsHtml += `
+                            <div class="flex justify-between items-center bg-gray-800 rounded-md p-4 shadow-md">
+                                <span class="text-sm text-gray-500">${metric.replace('_', ' ')}</span>
+                                <span class="font-bold ${metricColor}">${formattedValue}</span>
+                            </div>
+                        `;
+                    }
+                    resultsHtml += `</div></div>`;
+                }
+                resultsHtml += `</div>`;
+                document.getElementById('strategyResults').innerHTML = resultsHtml;
+            } else {
+                alert('Error running backtest: ' + data.error);
+            }
+        } catch (error) {
+            alert('Error: ' + error.message);
+        }
+    });
+</script>
+{% endblock %}
