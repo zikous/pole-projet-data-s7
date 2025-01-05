@@ -3,7 +3,6 @@
 {% block title %}Stock Analysis - Portfolio Manager{% endblock %}
 
 {% block content %}
-<!-- Previous content remains the same until the news section -->
 <div class="container mx-auto px-4 py-8">
     <!-- Header Section -->
     <header class="mb-8">
@@ -17,9 +16,9 @@
             <div class="flex-1 max-w-md">
                 <input type="text" id="ticker" placeholder="Enter stock ticker (e.g., AAPL)"
                     class="w-full bg-gray-700 text-white p-3 rounded-lg border border-gray-600 focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
-                    onkeypress="if(event.key === 'Enter') analyzeStock()">
+                    onkeypress="if(event.key === 'Enter') StockAnalysis.analyze()">
             </div>
-            <button onclick="analyzeStock()"
+            <button onclick="StockAnalysis.analyze()"
                 class="bg-blue-600 text-white px-6 py-3 rounded-lg hover:bg-blue-700 transition-colors duration-200 flex items-center gap-2">
                 <span>Analyze</span>
                 <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -38,7 +37,7 @@
             </div>
         </div>
 
-        <!-- Info Cards -->
+        <!-- Info Cards Grid -->
         <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
             <!-- Basic Information Card -->
             <div class="bg-gray-800 p-6 rounded-lg shadow-lg hover:shadow-xl transition-shadow duration-200">
@@ -97,70 +96,8 @@
 {% block scripts %}
 <script>
     const StockAnalysis = {
-        elements: {
-            ticker: () => document.getElementById('ticker'),
-            results: () => document.getElementById('results'),
-            loading: () => document.getElementById('loading'),
-            basicInfo: () => document.getElementById('basicInfo'),
-            keyMetrics: () => document.getElementById('keyMetrics'),
-            stockNews: () => document.getElementById('stockNews'),
-            priceChart: () => document.getElementById('priceChart'),
-        },
-
-        formatCurrency: (value) => {
-            return new Intl.NumberFormat('en-US', {
-                style: 'currency',
-                currency: 'USD',
-                minimization: 2
-            }).format(value);
-        },
-
-        formatPercentage: (value) => {
-            return value ? `${(value * 100).toFixed(2)}%` : 'N/A';
-        },
-
-        showLoading: () => {
-            StockAnalysis.elements.loading().classList.remove('hidden');
-            StockAnalysis.elements.results().classList.add('hidden');
-        },
-
-        hideLoading: () => {
-            StockAnalysis.elements.loading().classList.add('hidden');
-            StockAnalysis.elements.results().classList.remove('hidden');
-        },
-
-        displayBasicInfo: (info) => {
-            StockAnalysis.elements.basicInfo().innerHTML = `
-                <div class="grid grid-cols-2 gap-4">
-                    <div class="space-y-2">
-                        <p><span class="text-gray-400">Name:</span> ${info.name}</p>
-                        <p><span class="text-gray-400">Sector:</span> ${info.sector}</p>
-                        <p><span class="text-gray-400">Market Cap:</span> ${StockAnalysis.formatCurrency(info.market_cap / 1e9)}B</p>
-                    </div>
-                </div>
-            `;
-        },
-
-        displayKeyMetrics: (info) => {
-            StockAnalysis.elements.keyMetrics().innerHTML = `
-                <div class="grid grid-cols-2 gap-4">
-                    <div class="space-y-2">
-                        <p><span class="text-gray-400">P/E Ratio:</span> ${info.pe_ratio?.toFixed(2) || 'N/A'}</p>
-                        <p><span class="text-gray-400">Dividend Yield:</span> ${StockAnalysis.formatPercentage(info.dividend_yield)}</p>
-                        <p><span class="text-gray-400">Beta:</span> ${info.beta?.toFixed(2) || 'N/A'}</p>
-                    </div>
-                    <div class="space-y-2">
-                        <p><span class="text-gray-400">Debt/Equity:</span> ${info.debt_to_equity?.toFixed(2) || 'N/A'}</p>
-                        <p><span class="text-gray-400">ROE:</span> ${StockAnalysis.formatPercentage(info.roe)}</p>
-                        <p><span class="text-gray-400">ROA:</span> ${StockAnalysis.formatPercentage(info.roa)}</p>
-                    </div>
-                </div>
-            `;
-        },
-
-        displayChart: (chartData) => {
-            const layout = {
-                ...chartData.layout,
+        config: {
+            chartLayout: {
                 autosize: true,
                 margin: { l: 50, r: 30, t: 30, b: 50 },
                 paper_bgcolor: 'rgba(31, 41, 55, 0)',
@@ -181,20 +118,15 @@
                 hoverlabel: {
                     bgcolor: '#1F2937',
                     font: { color: '#fff' },
-                },
-            };
-
-            const config = {
+                }
+            },
+            plotlyConfig: {
                 responsive: true,
                 displayModeBar: true,
                 displaylogo: false,
                 modeBarButtonsToRemove: [
-                    'pan2d',
-                    'lasso2d',
-                    'select2d',
-                    'autoScale2d',
-                    'hoverClosestCartesian',
-                    'hoverCompareCartesian',
+                    'pan2d', 'lasso2d', 'select2d', 'autoScale2d',
+                    'hoverClosestCartesian', 'hoverCompareCartesian'
                 ],
                 toImageButtonOptions: {
                     format: 'png',
@@ -203,100 +135,178 @@
                     width: 1200,
                     scale: 2
                 }
-            };
-
-            // Clear existing chart before creating new one
-            Plotly.purge('priceChart');
-
-            // Create new chart
-            Plotly.newPlot('priceChart', chartData.data, layout, config);
-
-            // Force a resize after plot creation
-            setTimeout(() => {
-                Plotly.Plots.resize('priceChart');
-            }, 0);
+            },
+            sentimentColors: {
+                Positive: { text: 'text-green-500', border: 'border-green-500', bg: 'bg-green-500' },
+                Negative: { text: 'text-red-500', border: 'border-red-500', bg: 'bg-red-500' },
+                Neutral: { text: 'text-yellow-500', border: 'border-yellow-500', bg: 'bg-yellow-500' }
+            }
         },
 
-        getSentimentColor: (sentiment) => {
-            const colors = {
-                'Positive': 'text-green-500 border-green-500',
-                'Negative': 'text-red-500 border-red-500',
-                'Neutral': 'text-yellow-500 border-yellow-500'
-            };
-            return colors[sentiment] || 'text-gray-500 border-gray-500';
+        elements: {
+            ticker: () => document.getElementById('ticker'),
+            results: () => document.getElementById('results'),
+            loading: () => document.getElementById('loading'),
+            basicInfo: () => document.getElementById('basicInfo'),
+            keyMetrics: () => document.getElementById('keyMetrics'),
+            stockNews: () => document.getElementById('stockNews'),
+            priceChart: () => document.getElementById('priceChart')
         },
 
-        getSentimentBadgeColor: (sentiment) => {
-            const colors = {
-                'Positive': 'bg-green-500',
-                'Negative': 'bg-red-500',
-                'Neutral': 'bg-yellow-500'
-            };
-            return colors[sentiment] || 'bg-gray-500';
+        formatters: {
+            currency: (value) => new Intl.NumberFormat('en-US', {
+                style: 'currency',
+                currency: 'USD',
+                minimization: 2
+            }).format(value),
+
+            percentage: (value) => value ? `${(value * 100).toFixed(2)}%` : 'N/A',
+
+            number: (value) => isNaN(value) ? 'N/A' : value.toFixed(2)
         },
 
-        displayNews: (news) => {
-            StockAnalysis.elements.stockNews().innerHTML = news.map(article => `
-                <li class="bg-gray-700 rounded-lg overflow-hidden hover:bg-gray-600 transition-colors duration-200">
-                    <a href="${article.link}" target="_blank" class="block p-4">
-                        <div class="flex justify-between items-start gap-4">
-                            <h4 class="text-blue-400 font-medium flex-grow">${article.title}</h4>
-                            <div class="flex flex-col items-end gap-2">
-                                <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${StockAnalysis.getSentimentBadgeColor(article.sentiment)} bg-opacity-20 ${StockAnalysis.getSentimentColor(article.sentiment)}">
-                                    ${article.sentiment} (${(article.score * 100).toFixed(1)}%)
-                                </span>
+        utils: {
+            getSentimentStyle: (sentiment) => {
+                const colors = StockAnalysis.config.sentimentColors[sentiment] || {
+                    text: 'text-gray-500',
+                    border: 'border-gray-500',
+                    bg: 'bg-gray-500'
+                };
+                return colors;
+            },
+
+            toggleLoading: (show) => {
+                StockAnalysis.elements.loading().classList.toggle('hidden', !show);
+                StockAnalysis.elements.results().classList.toggle('hidden', show);
+            },
+
+            clearResults: () => {
+                StockAnalysis.elements.basicInfo().innerHTML = '';
+                StockAnalysis.elements.keyMetrics().innerHTML = '';
+                StockAnalysis.elements.stockNews().innerHTML = '';
+                if (StockAnalysis.elements.priceChart()) {
+                    Plotly.purge('priceChart');
+                }
+            }
+        },
+
+        displayHandlers: {
+            basicInfo: (info) => {
+                StockAnalysis.elements.basicInfo().innerHTML = `
+                <div class="grid grid-cols-2 gap-4">
+                    <div class="space-y-2">
+                        <p><span class="text-gray-400">Name:</span> ${info.name}</p>
+                        <p><span class="text-gray-400">Sector:</span> ${info.sector}</p>
+                        <p><span class="text-gray-400">Market Cap:</span> ${StockAnalysis.formatters.currency(info.market_cap / 1e9)}B</p>
+                    </div>
+                </div>
+            `;
+            },
+
+            keyMetrics: (info) => {
+                const metrics = {
+                    pe_ratio: parseFloat(info.pe_ratio),
+                    beta: parseFloat(info.beta),
+                    debt_to_equity: parseFloat(info.debt_to_equity),
+                    dividend_yield: parseFloat(info.dividend_yield),
+                    roe: parseFloat(info.roe),
+                    roa: parseFloat(info.roa)
+                };
+
+                StockAnalysis.elements.keyMetrics().innerHTML = `
+                <div class="grid grid-cols-2 gap-4">
+                    <div class="space-y-2">
+                        <p><span class="text-gray-400">P/E Ratio:</span> ${StockAnalysis.formatters.number(metrics.pe_ratio)}</p>
+                        <p><span class="text-gray-400">Dividend Yield:</span> ${StockAnalysis.formatters.percentage(metrics.dividend_yield)}</p>
+                        <p><span class="text-gray-400">Beta:</span> ${StockAnalysis.formatters.number(metrics.beta)}</p>
+                    </div>
+                    <div class="space-y-2">
+                        <p><span class="text-gray-400">Debt/Equity:</span> ${StockAnalysis.formatters.number(metrics.debt_to_equity)}</p>
+                        <p><span class="text-gray-400">ROE:</span> ${StockAnalysis.formatters.percentage(metrics.roe)}</p>
+                        <p><span class="text-gray-400">ROA:</span> ${StockAnalysis.formatters.percentage(metrics.roa)}</p>
+                    </div>
+                </div>
+            `;
+            },
+
+            chart: (chartData) => {
+                const layout = { ...StockAnalysis.config.chartLayout, ...chartData.layout };
+
+                Plotly.purge('priceChart');
+                Plotly.newPlot('priceChart', chartData.data, layout, StockAnalysis.config.plotlyConfig);
+
+                setTimeout(() => Plotly.Plots.resize('priceChart'), 0);
+            },
+
+            news: (news) => {
+                StockAnalysis.elements.stockNews().innerHTML = news.map(article => {
+                    const sentimentStyle = StockAnalysis.utils.getSentimentStyle(article.sentiment);
+                    return `
+                    <li class="bg-gray-700 rounded-lg overflow-hidden hover:bg-gray-600 transition-colors duration-200">
+                        <a href="${article.link}" target="_blank" class="block p-4">
+                            <div class="flex justify-between items-start gap-4">
+                                <h4 class="text-blue-400 font-medium flex-grow">${article.title}</h4>
+                                <div class="flex flex-col items-end gap-2">
+                                    <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${sentimentStyle.bg} bg-opacity-20 ${sentimentStyle.text}">
+                                        ${article.sentiment} (${(article.score * 100).toFixed(1)}%)
+                                    </span>
+                                </div>
                             </div>
-                        </div>
-                        <p class="text-gray-400 text-sm mt-2">${article.date || ''}</p>
-                    </a>
-                </li>
-            `).join('');
+                            <p class="text-gray-400 text-sm mt-2">${article.date || ''}</p>
+                        </a>
+                    </li>
+                `;
+                }).join('');
+            }
         },
 
-        async analyzeStock() {
+        async analyze() {
             const ticker = StockAnalysis.elements.ticker().value.toUpperCase();
             if (!ticker) {
                 alert('Please enter a stock ticker');
                 return;
             }
 
-            StockAnalysis.showLoading();
+            StockAnalysis.utils.clearResults();
+            StockAnalysis.utils.toggleLoading(true);
 
             try {
                 const response = await fetch(`/api/stock-info/${ticker}`);
                 const data = await response.json();
 
                 if (data.success) {
-                    StockAnalysis.displayBasicInfo(data.info);
-                    StockAnalysis.displayKeyMetrics(data.info);
-                    StockAnalysis.displayChart(JSON.parse(data.chart));
-                    StockAnalysis.displayNews(data.news);
-                    StockAnalysis.hideLoading();
+                    StockAnalysis.displayHandlers.basicInfo(data.info);
+                    StockAnalysis.displayHandlers.keyMetrics(data.info);
+                    StockAnalysis.displayHandlers.chart(JSON.parse(data.chart));
+                    StockAnalysis.displayHandlers.news(data.news);
+
+                    StockAnalysis.elements.results().classList.remove('hidden');
                 } else {
-                    alert('Error: ' + data.error);
+                    throw new Error(data.error || 'Failed to fetch stock data');
                 }
             } catch (error) {
                 console.error(error);
-                alert('Failed to fetch stock data.');
+                alert(error.message || 'Failed to fetch stock data.');
+                StockAnalysis.elements.results().classList.add('hidden');
             } finally {
-                StockAnalysis.hideLoading();
+                StockAnalysis.utils.toggleLoading(false);
             }
         }
     };
 
-    // Initialize event listeners
-    window.analyzeStock = StockAnalysis.analyzeStock;
-
-    // Improved resize handling
+    // Initialize event handlers
     let resizeTimeout;
     window.addEventListener('resize', () => {
         clearTimeout(resizeTimeout);
         resizeTimeout = setTimeout(() => {
-            const chartElement = document.getElementById('priceChart');
+            const chartElement = StockAnalysis.elements.priceChart();
             if (chartElement && chartElement.data) {
                 Plotly.Plots.resize(chartElement);
             }
         }, 250);
     });
+
+    // Expose analyze method to global scope for HTML onclick handlers
+    window.analyzeStock = StockAnalysis.analyze;
 </script>
 {% endblock %}
