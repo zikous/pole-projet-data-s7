@@ -1,80 +1,102 @@
+<!-- templates/portfolio-optimizer.html -->
 {% extends "base.html" %}
 
 {% block title %}Portfolio Optimizer - Portfolio Manager{% endblock %}
 
 {% block content %}
-<h2 class="text-3xl font-bold mb-8">Portfolio Optimizer</h2>
+<!-- Page Header -->
+<header class="mb-12">
+    <h2 class="text-3xl font-bold">Portfolio Optimizer</h2>
+    <p class="mt-4 text-gray-400 max-w-2xl">Optimize your investment portfolio using modern portfolio theory and
+        advanced optimization techniques.</p>
+</header>
 
-<div class="bg-gray-800 p-6 rounded-lg mb-8">
+<!-- Input Form Section -->
+<section class="bg-gray-800 p-6 rounded-lg shadow-lg mb-8">
     <form id="optimizerForm" class="grid grid-cols-1 md:grid-cols-2 gap-6">
-        <div>
-            <label for="tickers" class="block mb-2">Tickers (comma-separated)</label>
+        <!-- Tickers Input -->
+        <div class="space-y-2">
+            <label for="tickers" class="block font-medium">Tickers (comma-separated)</label>
             <input type="text" id="tickers" name="tickers" required
-                class="w-full bg-gray-700 p-2 rounded text-white focus:ring-2 focus:ring-blue-500 focus:outline-none"
+                class="w-full bg-gray-700 p-3 rounded-lg border border-gray-600 text-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500 focus:outline-none"
                 placeholder="AAPL,MSFT,GOOGL" value="AAPL,MSFT,GOOGL,AMZN" pattern="^[A-Z,\s]*$"
                 title="Please enter uppercase ticker symbols separated by commas">
         </div>
-        <div>
-            <label for="initialCapital" class="block mb-2">Initial Capital ($)</label>
+
+        <!-- Initial Capital Input -->
+        <div class="space-y-2">
+            <label for="initialCapital" class="block font-medium">Initial Capital ($)</label>
             <input type="number" id="initialCapital" name="initialCapital" required
-                class="w-full bg-gray-700 p-2 rounded text-white focus:ring-2 focus:ring-blue-500 focus:outline-none"
+                class="w-full bg-gray-700 p-3 rounded-lg border border-gray-600 text-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500 focus:outline-none"
                 min="1000" max="10000000" step="1000" value="10000">
         </div>
-        <div>
-            <label for="startDate" class="block mb-2">Start Date</label>
+
+        <!-- Date Range Inputs -->
+        <div class="space-y-2">
+            <label for="startDate" class="block font-medium">Start Date</label>
             <input type="date" id="startDate" name="startDate" required
-                class="w-full bg-gray-700 p-2 rounded text-white focus:ring-2 focus:ring-blue-500 focus:outline-none">
+                class="w-full bg-gray-700 p-3 rounded-lg border border-gray-600 text-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500 focus:outline-none">
         </div>
-        <div>
-            <label for="endDate" class="block mb-2">End Date</label>
+
+        <div class="space-y-2">
+            <label for="endDate" class="block font-medium">End Date</label>
             <input type="date" id="endDate" name="endDate" required
-                class="w-full bg-gray-700 p-2 rounded text-white focus:ring-2 focus:ring-blue-500 focus:outline-none">
+                class="w-full bg-gray-700 p-3 rounded-lg border border-gray-600 text-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500 focus:outline-none">
         </div>
-        <div>
-            <label for="targetReturn" class="block mb-2">Target Return (optional, %)</label>
+
+        <!-- Target Return Input -->
+        <div class="space-y-2">
+            <label for="targetReturn" class="block font-medium">Target Return (optional, %)</label>
             <input type="number" id="targetReturn" name="targetReturn"
-                class="w-full bg-gray-700 p-2 rounded text-white focus:ring-2 focus:ring-blue-500 focus:outline-none"
+                class="w-full bg-gray-700 p-3 rounded-lg border border-gray-600 text-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500 focus:outline-none"
                 step="0.1" min="0" max="100" placeholder="15">
         </div>
+
+        <!-- Submit Button -->
         <div class="flex items-end">
-            <button type="submit"
-                class="bg-blue-600 text-white px-6 py-2 rounded hover:bg-blue-700 focus:ring-2 focus:ring-blue-500 focus:outline-none transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                id="submitButton">
+            <button type="submit" id="submitButton"
+                class="bg-blue-600 text-white px-8 py-3 rounded-lg hover:bg-blue-700 focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 focus:ring-offset-gray-800 focus:outline-none transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed">
                 Optimize Portfolio
             </button>
         </div>
     </form>
-</div>
+</section>
 
+<!-- Loading State -->
 <div id="loadingIndicator" class="hidden">
-    <div class="flex items-center justify-center space-x-4">
-        <svg class="animate-spin h-8 w-8 text-blue-500" xmlns="http://www.w3.org/2000/svg" fill="none"
-            viewBox="0 0 24 24">
-            <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
-            <path class="opacity-75" fill="currentColor"
-                d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z">
-            </path>
-        </svg>
-        <p class="text-center text-xl">Optimizing portfolio...</p>
+    <div class="flex items-center justify-center space-x-4 bg-gray-800 p-6 rounded-lg shadow-lg">
+        <div class="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500"></div>
+        <p class="text-xl font-medium">Optimizing portfolio...</p>
     </div>
 </div>
 
-<div id="errorMessage" class="hidden bg-red-600 text-white p-4 rounded-lg mb-8">
-    <p class="font-bold">Error</p>
-    <p id="errorText"></p>
+<!-- Error Message -->
+<div id="errorMessage" class="hidden">
+    <div class="bg-red-600/90 backdrop-blur-sm text-white p-6 rounded-lg shadow-lg mb-8">
+        <div class="flex items-center space-x-3">
+            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                    d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+            </svg>
+            <h4 class="text-lg font-bold">Error</h4>
+        </div>
+        <p id="errorText" class="mt-2"></p>
+    </div>
 </div>
 
-<div id="results" class="hidden">
-    <div class="grid grid-cols-1 md:grid-cols-2 gap-8 mb-8">
-        <div class="bg-gray-800 p-6 rounded-lg">
-            <h3 class="text-xl font-bold mb-4">Portfolio Weights</h3>
-            <div id="weightResults" class="animate-fade-in"></div>
-        </div>
-        <div class="bg-gray-800 p-6 rounded-lg">
-            <h3 class="text-xl font-bold mb-4">Performance Summary</h3>
-            <div id="performanceResults" class="animate-fade-in"></div>
-        </div>
-    </div>
+<!-- Results Section -->
+<div id="results" class="hidden space-y-8">
+    <!-- Portfolio Weights -->
+    <section class="bg-gray-800 p-6 rounded-lg shadow-lg">
+        <h3 class="text-xl font-bold mb-6">Portfolio Weights</h3>
+        <div id="weightResults" class="animate-fade-in"></div>
+    </section>
+
+    <!-- Performance Summary -->
+    <section class="bg-gray-800 p-6 rounded-lg shadow-lg">
+        <h3 class="text-xl font-bold mb-6">Performance Summary</h3>
+        <div id="performanceResults" class="animate-fade-in"></div>
+    </section>
 </div>
 {% endblock %}
 
@@ -82,172 +104,203 @@
 <script>
     class PortfolioOptimizer {
         constructor() {
-            this.form = document.getElementById('optimizerForm');
-            this.loadingIndicator = document.getElementById('loadingIndicator');
-            this.results = document.getElementById('results');
-            this.errorMessage = document.getElementById('errorMessage');
-            this.errorText = document.getElementById('errorText');
-            this.submitButton = document.getElementById('submitButton');
-
+            this.initializeElements();
             this.initializeDates();
             this.setupEventListeners();
         }
 
+        initializeElements() {
+            this.elements = {
+                form: document.getElementById('optimizerForm'),
+                loading: document.getElementById('loadingIndicator'),
+                results: document.getElementById('results'),
+                error: {
+                    container: document.getElementById('errorMessage'),
+                    text: document.getElementById('errorText')
+                },
+                submitButton: document.getElementById('submitButton'),
+                startDate: document.getElementById('startDate'),
+                endDate: document.getElementById('endDate')
+            };
+        }
+
         initializeDates() {
             const today = new Date();
-            const oneYearAgo = new Date();
+            const oneYearAgo = new Date(today);
             oneYearAgo.setFullYear(today.getFullYear() - 1);
 
-            const startDateInput = document.getElementById('startDate');
-            const endDateInput = document.getElementById('endDate');
+            this.elements.startDate.value = this.formatDate(oneYearAgo);
+            this.elements.startDate.max = this.formatDate(today);
 
-            startDateInput.value = oneYearAgo.toISOString().split('T')[0];
-            startDateInput.max = today.toISOString().split('T')[0];
+            this.elements.endDate.value = this.formatDate(today);
+            this.elements.endDate.max = this.formatDate(today);
+        }
 
-            endDateInput.value = today.toISOString().split('T')[0];
-            endDateInput.max = today.toISOString().split('T')[0];
+        formatDate(date) {
+            return date.toISOString().split('T')[0];
         }
 
         setupEventListeners() {
-            this.form.addEventListener('submit', this.handleSubmit.bind(this));
+            this.elements.form.addEventListener('submit', this.handleSubmit.bind(this));
+            this.elements.startDate.addEventListener('change', () => this.handleDateChange('start'));
+            this.elements.endDate.addEventListener('change', () => this.handleDateChange('end'));
+        }
 
-            // Validate date ranges
-            const startDate = document.getElementById('startDate');
-            const endDate = document.getElementById('endDate');
-
-            startDate.addEventListener('change', () => {
-                endDate.min = startDate.value;
-                this.validateDates();
-            });
-
-            endDate.addEventListener('change', () => {
-                startDate.max = endDate.value;
-                this.validateDates();
-            });
+        handleDateChange(type) {
+            if (type === 'start') {
+                this.elements.endDate.min = this.elements.startDate.value;
+            } else {
+                this.elements.startDate.max = this.elements.endDate.value;
+            }
+            this.validateDates();
         }
 
         validateDates() {
-            const start = new Date(document.getElementById('startDate').value);
-            const end = new Date(document.getElementById('endDate').value);
-            this.submitButton.disabled = start >= end;
+            const start = new Date(this.elements.startDate.value);
+            const end = new Date(this.elements.endDate.value);
+            this.elements.submitButton.disabled = start >= end;
         }
 
-        showError(message) {
-            this.errorText.textContent = message;
-            this.errorMessage.classList.remove('hidden');
+        showError(message, duration = 5000) {
+            this.elements.error.text.textContent = message;
+            this.elements.error.container.classList.remove('hidden');
             setTimeout(() => {
-                this.errorMessage.classList.add('hidden');
-            }, 5000);
+                this.elements.error.container.classList.add('hidden');
+            }, duration);
         }
 
         async handleSubmit(e) {
             e.preventDefault();
-            this.submitButton.disabled = true;
-            this.loadingIndicator.classList.remove('hidden');
-            this.results.classList.add('hidden');
-            this.errorMessage.classList.add('hidden');
 
-            const formData = {
-                tickers: document.getElementById('tickers').value.split(',').map(t => t.trim()),
-                initial_capital: parseFloat(document.getElementById('initialCapital').value),
-                start_date: document.getElementById('startDate').value,
-                end_date: document.getElementById('endDate').value,
-                target_return: document.getElementById('targetReturn').value ?
-                    parseFloat(document.getElementById('targetReturn').value) / 100 : null
-            };
+            const formData = this.getFormData();
 
             try {
-                const response = await fetch('/api/optimize-portfolio', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify(formData)
-                });
-
-                const data = await response.json();
-
-                if (!response.ok) {
-                    throw new Error(data.error || 'Failed to optimize portfolio');
-                }
-
-                if (data.success && data.result) {
-                    this.displayResults(data.result, formData.tickers);
+                await this.toggleLoadingState(true);
+                const result = await this.submitOptimization(formData);
+                if (result.success && result.result) {
+                    this.displayResults(result.result, formData.tickers);
                 }
             } catch (error) {
                 console.error('Error:', error);
                 this.showError(error.message);
             } finally {
-                this.loadingIndicator.classList.add('hidden');
-                this.submitButton.disabled = false;
+                await this.toggleLoadingState(false);
             }
         }
 
+        getFormData() {
+            return {
+                tickers: document.getElementById('tickers').value.split(',').map(t => t.trim()),
+                initial_capital: parseFloat(document.getElementById('initialCapital').value),
+                start_date: this.elements.startDate.value,
+                end_date: this.elements.endDate.value,
+                target_return: document.getElementById('targetReturn').value ?
+                    parseFloat(document.getElementById('targetReturn').value) / 100 : null
+            };
+        }
+
+        async toggleLoadingState(isLoading) {
+            this.elements.submitButton.disabled = isLoading;
+            this.elements.loading.classList.toggle('hidden', !isLoading);
+            this.elements.results.classList.toggle('hidden', isLoading);
+            this.elements.error.container.classList.add('hidden');
+        }
+
+        async submitOptimization(formData) {
+            const response = await fetch('/api/optimize-portfolio', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(formData)
+            });
+
+            const data = await response.json();
+
+            if (!response.ok) {
+                throw new Error(data.error || 'Failed to optimize portfolio');
+            }
+
+            return data;
+        }
+
         displayResults(result, tickers) {
-            this.results.classList.remove('hidden');
+            this.elements.results.classList.remove('hidden');
             this.displayWeights(result.weights, tickers);
             this.displayPerformance(result.performance);
         }
 
         displayWeights(weights, tickers) {
             const weightResults = document.getElementById('weightResults');
-            let weightsHtml = '';
+            const weightsHtml = Object.entries(weights).map(([strategy, strategyWeights]) => `
+            <div class="mb-8 last:mb-0">
+                <h4 class="font-bold mb-6 text-lg text-blue-400">${strategy.replace('_', ' ').toUpperCase()}</h4>
+                <div class="grid grid-cols-2 md:grid-cols-4 gap-6">
+                    ${this.generateWeightCircles(strategyWeights, tickers)}
+                </div>
+            </div>
+        `).join('');
 
-            for (const [strategy, strategyWeights] of Object.entries(weights)) {
-                weightsHtml += `
-                    <div class="mb-6">
-                        <h4 class="font-bold mb-4 text-lg">${strategy.replace('_', ' ').toUpperCase()}</h4>
-                        <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
-                            ${strategyWeights.map((weight, index) => `
-                                <div class="flex flex-col items-center">
-                                    <div class="relative w-24 h-24">
-                                        <svg class="w-24 h-24 transform -rotate-90" viewBox="0 0 100 100">
-                                            <circle cx="50" cy="50" r="45" stroke="#2D3748" stroke-width="10" fill="none"></circle>
-                                            <circle cx="50" cy="50" r="45" 
-                                                stroke="#48BB78" 
-                                                stroke-width="10" 
-                                                fill="none"
-                                                stroke-dasharray="${(2 * Math.PI * 45).toFixed(2)}"
-                                                stroke-dashoffset="${((1 - weight) * 2 * Math.PI * 45).toFixed(2)}"
-                                                class="transition-all duration-1000">
-                                            </circle>
-                                        </svg>
-                                        <div class="absolute inset-0 flex items-center justify-center text-sm font-bold">
-                                            ${(weight * 100).toFixed(1)}%
-                                        </div>
-                                    </div>
-                                    <span class="mt-2 text-center font-medium">${tickers[index]}</span>
-                                </div>
-                            `).join('')}
-                        </div>
-                    </div>
-                `;
-            }
             weightResults.innerHTML = weightsHtml;
+        }
+
+        generateWeightCircles(weights, tickers) {
+            return weights.map((weight, index) => `
+            <div class="flex flex-col items-center">
+                <div class="relative w-24 h-24">
+                    <svg class="w-24 h-24 transform -rotate-90" viewBox="0 0 100 100">
+                        <circle 
+                            cx="50" 
+                            cy="50" 
+                            r="45" 
+                            stroke="#2D3748" 
+                            stroke-width="10" 
+                            fill="none"
+                        ></circle>
+                        <circle 
+                            cx="50" 
+                            cy="50" 
+                            r="45" 
+                            stroke="#48BB78" 
+                            stroke-width="10" 
+                            fill="none"
+                            stroke-dasharray="${(2 * Math.PI * 45).toFixed(2)}"
+                            stroke-dashoffset="${((1 - weight) * 2 * Math.PI * 45).toFixed(2)}"
+                            class="transition-all duration-1000"
+                        ></circle>
+                    </svg>
+                    <div class="absolute inset-0 flex items-center justify-center">
+                        <span class="text-sm font-bold">${(weight * 100).toFixed(1)}%</span>
+                    </div>
+                </div>
+                <span class="mt-3 text-center font-medium text-gray-300">${tickers[index]}</span>
+            </div>
+        `).join('');
         }
 
         displayPerformance(performance) {
             const performanceResults = document.getElementById('performanceResults');
-            let performanceHtml = '';
+            const performanceHtml = Object.entries(performance).map(([strategy, metrics]) => `
+            <div class="mb-8 last:mb-0">
+                <h4 class="font-bold text-lg mb-6 text-blue-400">${strategy.replace('_', ' ').toUpperCase()}</h4>
+                <div class="grid grid-cols-2 md:grid-cols-3 gap-4">
+                    ${this.generateMetricsCards(metrics)}
+                </div>
+            </div>
+        `).join('');
 
-            for (const [strategy, metrics] of Object.entries(performance)) {
-                performanceHtml += `
-                    <div class="mb-6 bg-gray-700 p-4 rounded-lg shadow-md">
-                        <h4 class="font-bold text-lg mb-4">${strategy.replace('_', ' ').toUpperCase()}</h4>
-                        <div class="grid grid-cols-2 gap-4">
-                            ${Object.entries(metrics).map(([metric, value]) => `
-                                <div class="bg-gray-800 p-3 rounded-lg text-center transition-all hover:bg-gray-600">
-                                    <p class="text-sm text-gray-400">${metric.replace('_', ' ').toUpperCase()}</p>
-                                    <p class="text-lg font-bold">
-                                        ${metric === 'return' || metric === 'risk' ?
-                        `${(value * 100).toFixed(2)}%` :
-                        value.toFixed(2)}
-                                    </p>
-                                </div>
-                            `).join('')}
-                        </div>
-                    </div>
-                `;
-            }
             performanceResults.innerHTML = performanceHtml;
+        }
+
+        generateMetricsCards(metrics) {
+            return Object.entries(metrics).map(([metric, value]) => `
+            <div class="bg-gray-700 p-4 rounded-lg shadow-md hover:bg-gray-600 transition-colors duration-200">
+                <p class="text-sm text-gray-400 mb-2">${metric.replace('_', ' ').toUpperCase()}</p>
+                <p class="text-lg font-bold">
+                    ${metric === 'return' || metric === 'risk' ?
+                    `${(value * 100).toFixed(2)}%` :
+                    value.toFixed(2)}
+                </p>
+            </div>
+        `).join('');
         }
     }
 

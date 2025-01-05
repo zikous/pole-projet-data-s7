@@ -1,93 +1,275 @@
-<!-- templates/stock_analysis.html -->
 {% extends "base.html" %}
 
 {% block title %}Stock Analysis - Portfolio Manager{% endblock %}
 
 {% block content %}
-<h2 class="text-3xl font-bold mb-8">Stock Analysis</h2>
+<div class="container mx-auto px-4 py-8">
+    <!-- Header Section -->
+    <header class="mb-8">
+        <h2 class="text-4xl font-bold text-gray-100 mb-4">Stock Analysis</h2>
+        <p class="text-gray-400">Enter a stock ticker to view detailed analysis and metrics</p>
+    </header>
 
-<div class="mb-8">
-    <input type="text" id="ticker" placeholder="Enter stock ticker (e.g., AAPL)"
-        class="bg-gray-700 text-white p-2 rounded">
-    <button onclick="analyzeStock()"
-        class="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700 ml-2">Analyze</button>
-</div>
-
-<div id="results" class="hidden">
-    <div class="grid grid-cols-1 md:grid-cols-2 gap-8 mb-8">
-        <div class="bg-gray-800 p-6 rounded-lg">
-            <h3 class="text-xl font-bold mb-4">Basic Information</h3>
-            <div id="basicInfo"></div>
-        </div>
-        <div class="bg-gray-800 p-6 rounded-lg">
-            <h3 class="text-xl font-bold mb-4">Key Metrics</h3>
-            <div id="keyMetrics"></div>
+    <!-- Search Section -->
+    <div class="mb-8">
+        <div class="flex flex-wrap gap-4">
+            <div class="flex-1 max-w-md">
+                <input type="text" id="ticker" placeholder="Enter stock ticker (e.g., AAPL)"
+                    class="w-full bg-gray-700 text-white p-3 rounded-lg border border-gray-600 focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
+                    onkeypress="if(event.key === 'Enter') analyzeStock()">
+            </div>
+            <button onclick="analyzeStock()"
+                class="bg-blue-600 text-white px-6 py-3 rounded-lg hover:bg-blue-700 transition-colors duration-200 flex items-center gap-2">
+                <span>Analyze</span>
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
+                </svg>
+            </button>
         </div>
     </div>
 
-    <div class="bg-gray-800 p-6 rounded-lg mb-8">
-        <h3 class="text-xl font-bold mb-4">Stock Price Chart</h3>
-        <div id="priceChart"></div>
-    </div>
+    <!-- Results Section -->
+    <div id="results" class="hidden space-y-8">
+        <!-- Loading Indicator -->
+        <div id="loading" class="hidden">
+            <div class="flex items-center justify-center p-12">
+                <div class="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500"></div>
+            </div>
+        </div>
 
-    <div class="bg-gray-800 p-6 rounded-lg">
-        <h3 class="text-xl font-bold mb-4">Latest News</h3>
-        <ul id="stockNews" class="space-y-2"></ul>
+        <!-- Info Cards -->
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
+            <!-- Basic Information Card -->
+            <div class="bg-gray-800 p-6 rounded-lg shadow-lg hover:shadow-xl transition-shadow duration-200">
+                <h3 class="text-xl font-bold mb-4 text-gray-100 flex items-center gap-2">
+                    <svg class="w-5 h-5 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                            d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    </svg>
+                    Basic Information
+                </h3>
+                <div id="basicInfo" class="space-y-3 text-gray-300"></div>
+            </div>
+
+            <!-- Key Metrics Card -->
+            <div class="bg-gray-800 p-6 rounded-lg shadow-lg hover:shadow-xl transition-shadow duration-200">
+                <h3 class="text-xl font-bold mb-4 text-gray-100 flex items-center gap-2">
+                    <svg class="w-5 h-5 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                            d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+                    </svg>
+                    Key Metrics
+                </h3>
+                <div id="keyMetrics" class="space-y-3 text-gray-300"></div>
+            </div>
+        </div>
+
+        <!-- Chart Section -->
+        <div class="bg-gray-800 p-6 rounded-lg shadow-lg">
+            <h3 class="text-xl font-bold mb-4 text-gray-100 flex items-center gap-2">
+                <svg class="w-5 h-5 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                        d="M7 12l3-3 3 3 4-4M8 21l4-4 4 4M3 4h18M4 4h16v12a1 1 0 01-1 1H5a1 1 0 01-1-1V4z" />
+                </svg>
+                Stock Price Chart
+            </h3>
+            <div id="chartContainer" class="w-full" style="height: 60vh;">
+                <div id="priceChart" class="w-full h-full"></div>
+            </div>
+        </div>
+
+        <!-- News Section -->
+        <div class="bg-gray-800 p-6 rounded-lg shadow-lg">
+            <h3 class="text-xl font-bold mb-4 text-gray-100 flex items-center gap-2">
+                <svg class="w-5 h-5 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                        d="M19 20H5a2 2 0 01-2-2V6a2 2 0 012-2h10a2 2 0 012 2v1m2 13a2 2 0 01-2-2V7m2 13a2 2 0 002-2V9.5a2.5 2.5 0 00-2.5-2.5H14" />
+                </svg>
+                Latest News
+            </h3>
+            <ul id="stockNews" class="space-y-4"></ul>
+        </div>
     </div>
 </div>
 {% endblock %}
 
 {% block scripts %}
 <script>
-    async function analyzeStock() {
-        const ticker = document.getElementById('ticker').value.toUpperCase();
-        document.getElementById('results').classList.add('hidden');
+    const StockAnalysis = {
+        elements: {
+            ticker: () => document.getElementById('ticker'),
+            results: () => document.getElementById('results'),
+            loading: () => document.getElementById('loading'),
+            basicInfo: () => document.getElementById('basicInfo'),
+            keyMetrics: () => document.getElementById('keyMetrics'),
+            stockNews: () => document.getElementById('stockNews'),
+            priceChart: () => document.getElementById('priceChart'),
+        },
 
-        try {
-            const response = await fetch(`/api/stock-info/${ticker}`);
-            const data = await response.json();
+        formatCurrency: (value) => {
+            return new Intl.NumberFormat('en-US', {
+                style: 'currency',
+                currency: 'USD',
+                minimization: 2
+            }).format(value);
+        },
 
-            if (data.success) {
-                document.getElementById('results').classList.remove('hidden');
+        formatPercentage: (value) => {
+            return value ? `${(value * 100).toFixed(2)}%` : 'N/A';
+        },
 
-                // Display basic info
-                const info = data.info;
-                document.getElementById('basicInfo').innerHTML = `
-                    <p><strong>Name:</strong> ${info.name}</p>
-                    <p><strong>Sector:</strong> ${info.sector}</p>
-                    <p><strong>Market Cap:</strong> $${(info.market_cap / 1e9).toFixed(2)}B</p>
-                `;
+        showLoading: () => {
+            StockAnalysis.elements.loading().classList.remove('hidden');
+            StockAnalysis.elements.results().classList.add('hidden');
+        },
 
-                // Display key metrics
-                document.getElementById('keyMetrics').innerHTML = `
-                    <p><strong>P/E Ratio:</strong> ${info.pe_ratio?.toFixed(2) || 'N/A'}</p>
-                    <p><strong>Dividend Yield:</strong> ${info.dividend_yield ? (info.dividend_yield * 100).toFixed(2) + '%' : 'N/A'}</p>
-                    <p><strong>Beta:</strong> ${info.beta?.toFixed(2) || 'N/A'}</p>
-                    <p><strong>Profit Margin:</strong> ${info.profit_margin?.toFixed(2) || 'N/A'}</p>
-                    <p><strong>Debt/Equity Ratio:</strong> ${info.debt_to_equity?.toFixed(2) || 'N/A'}</p>
-                    <p><strong>Return on Equity (ROE):</strong> ${info.roe?.toFixed(2) || 'N/A'}</p>
-                    <p><strong>Return on Assets (ROA):</strong> ${info.roa?.toFixed(2) || 'N/A'}</p>
-                `;
+        hideLoading: () => {
+            StockAnalysis.elements.loading().classList.add('hidden');
+            StockAnalysis.elements.results().classList.remove('hidden');
+        },
 
-                // Display price chart
-                const chartData = JSON.parse(data.chart);
-                Plotly.newPlot('priceChart', chartData.data, chartData.layout);
+        displayBasicInfo: (info) => {
+            StockAnalysis.elements.basicInfo().innerHTML = `
+                <div class="grid grid-cols-2 gap-4">
+                    <div class="space-y-2">
+                        <p><span class="text-gray-400">Name:</span> ${info.name}</p>
+                        <p><span class="text-gray-400">Sector:</span> ${info.sector}</p>
+                        <p><span class="text-gray-400">Market Cap:</span> ${StockAnalysis.formatCurrency(info.market_cap / 1e9)}B</p>
+                    </div>
+                </div>
+            `;
+        },
 
-                // Display stock news
-                document.getElementById('stockNews').innerHTML = data.news.map(article => `
-                    <li>
-                        <a href="${article.link}" target="_blank" class="text-blue-400 hover:underline">
-                            ${article.title}
-                        </a>
-                    </li>
-                `).join('');
-            } else {
-                alert('Error: ' + data.error);
+        displayKeyMetrics: (info) => {
+            StockAnalysis.elements.keyMetrics().innerHTML = `
+                <div class="grid grid-cols-2 gap-4">
+                    <div class="space-y-2">
+                        <p><span class="text-gray-400">P/E Ratio:</span> ${info.pe_ratio?.toFixed(2) || 'N/A'}</p>
+                        <p><span class="text-gray-400">Dividend Yield:</span> ${StockAnalysis.formatPercentage(info.dividend_yield)}</p>
+                        <p><span class="text-gray-400">Beta:</span> ${info.beta?.toFixed(2) || 'N/A'}</p>
+                        <p><span class="text-gray-400">Profit Margin:</span> ${StockAnalysis.formatPercentage(info.profit_margin)}</p>
+                    </div>
+                    <div class="space-y-2">
+                        <p><span class="text-gray-400">Debt/Equity:</span> ${info.debt_to_equity?.toFixed(2) || 'N/A'}</p>
+                        <p><span class="text-gray-400">ROE:</span> ${StockAnalysis.formatPercentage(info.roe)}</p>
+                        <p><span class="text-gray-400">ROA:</span> ${StockAnalysis.formatPercentage(info.roa)}</p>
+                    </div>
+                </div>
+            `;
+        },
+
+        displayChart: (chartData) => {
+            const layout = {
+                ...chartData.layout,
+                autosize: true,
+                margin: { l: 50, r: 30, t: 30, b: 50 },
+                paper_bgcolor: 'rgba(31, 41, 55, 0)',
+                plot_bgcolor: 'rgba(31, 41, 55, 0)',
+                font: { color: '#fff', family: 'system-ui' },
+                xaxis: {
+                    showgrid: true,
+                    gridcolor: 'rgba(107, 114, 128, 0.2)',
+                    tickfont: { size: 12 },
+                    rangeslider: { visible: false }
+                },
+                yaxis: {
+                    showgrid: true,
+                    gridcolor: 'rgba(107, 114, 128, 0.2)',
+                    tickfont: { size: 12 },
+                    fixedrange: false
+                },
+                hoverlabel: {
+                    bgcolor: '#1F2937',
+                    font: { color: '#fff' },
+                },
+            };
+
+            const config = {
+                responsive: true,
+                displayModeBar: true,
+                displaylogo: false,
+                modeBarButtonsToRemove: [
+                    'pan2d',
+                    'lasso2d',
+                    'select2d',
+                    'autoScale2d',
+                    'hoverClosestCartesian',
+                    'hoverCompareCartesian',
+                ],
+                toImageButtonOptions: {
+                    format: 'png',
+                    filename: 'stock_chart',
+                    height: 800,
+                    width: 1200,
+                    scale: 2
+                }
+            };
+
+            Plotly.newPlot('priceChart', chartData.data, layout, config);
+
+            // Force a resize after plot creation
+            setTimeout(() => {
+                window.dispatchEvent(new Event('resize'));
+            }, 100);
+        },
+
+        displayNews: (news) => {
+            StockAnalysis.elements.stockNews().innerHTML = news.map(article => `
+                <li class="border-l-4 border-blue-500 pl-4">
+                    <a href="${article.link}" 
+                       target="_blank" 
+                       class="block hover:bg-gray-700 p-3 rounded transition-colors duration-200">
+                        <h4 class="text-blue-400 hover:text-blue-300 font-medium mb-2">${article.title}</h4>
+                        <p class="text-gray-400 text-sm">${article.date || ''}</p>
+                    </a>
+                </li>
+            `).join('');
+        },
+
+        async analyzeStock() {
+            const ticker = StockAnalysis.elements.ticker().value.toUpperCase();
+            if (!ticker) {
+                alert('Please enter a stock ticker');
+                return;
             }
-        } catch (error) {
-            console.error(error);
-            alert('Failed to fetch stock data.');
+
+            StockAnalysis.showLoading();
+
+            try {
+                const response = await fetch(`/api/stock-info/${ticker}`);
+                const data = await response.json();
+
+                if (data.success) {
+                    StockAnalysis.displayBasicInfo(data.info);
+                    StockAnalysis.displayKeyMetrics(data.info);
+                    StockAnalysis.displayChart(JSON.parse(data.chart));
+                    StockAnalysis.displayNews(data.news);
+                    StockAnalysis.hideLoading();
+                } else {
+                    alert('Error: ' + data.error);
+                }
+            } catch (error) {
+                console.error(error);
+                alert('Failed to fetch stock data.');
+            } finally {
+                StockAnalysis.hideLoading();
+            }
         }
-    }
+    };
+
+    // Initialize event listeners
+    window.analyzeStock = StockAnalysis.analyzeStock;
+
+    // Improved resize handling
+    let resizeTimeout;
+    window.addEventListener('resize', () => {
+        clearTimeout(resizeTimeout);
+        resizeTimeout = setTimeout(() => {
+            const chartElement = document.getElementById('priceChart');
+            if (chartElement && chartElement.data) {
+                Plotly.Plots.resize(chartElement);
+            }
+        }, 250);
+    });
 </script>
 {% endblock %}

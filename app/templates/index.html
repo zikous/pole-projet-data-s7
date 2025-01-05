@@ -1,24 +1,125 @@
-<!-- templates/index.html -->
 {% extends "base.html" %}
 
 {% block content %}
-<h2 class="text-3xl font-bold mb-8">Welcome to Portfolio Manager</h2>
-<div class="grid grid-cols-1 md:grid-cols-2 gap-8">
-    <div class="bg-gray-800 p-6 rounded-lg">
-        <h3 class="text-xl font-bold mb-4">Stock Analysis</h3>
-        <p class="mb-4">Analyze individual stocks, view historical data, and get key metrics.</p>
-        <a href="/stock-analysis" class="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700">Get Started</a>
-    </div>
-    <div class="bg-gray-800 p-6 rounded-lg">
-        <h3 class="text-xl font-bold mb-4">Portfolio Optimizer</h3>
-        <p class="mb-4">Optimize your portfolio using modern portfolio theory.</p>
-        <a href="/portfolio-optimizer" class="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700">Get
-            Started</a>
-    </div>
-    <div class="bg-gray-800 p-6 rounded-lg">
-        <h3 class="text-xl font-bold mb-4">Backtesting</h3>
-        <p class="mb-4">Test your portfolio strategy against historical data.</p>
-        <a href="/backtesting" class="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700">Get Started</a>
-    </div>
+<!-- Hero Section -->
+<div class="relative overflow-hidden mb-16">
+    <div class="absolute inset-0 bg-gradient-to-br from-blue-600/20 to-purple-600/20 rounded-3xl opacity-30"></div>
+    <header class="relative py-12 px-6 rounded-3xl bg-gray-800/50 backdrop-blur-sm border border-gray-700">
+        <h2
+            class="text-4xl md:text-5xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-blue-400 to-purple-400 inline-block">
+            Welcome to Portfolio Manager
+        </h2>
+        <p class="mt-6 text-gray-300 text-lg md:text-xl max-w-3xl leading-relaxed">
+            Your comprehensive tool for stock analysis, portfolio optimization, and strategy backtesting. Make informed
+            decisions with advanced analytics and real-time data.
+        </p>
+    </header>
 </div>
+
+<!-- Features Grid -->
+<section class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+    <!-- Stock Analysis Card -->
+    <article
+        class="group relative bg-gray-800 rounded-xl shadow-lg overflow-hidden transition-all duration-300 hover:shadow-2xl hover:shadow-blue-500/10 hover:-translate-y-1 flex flex-col h-full">
+        <div
+            class="absolute inset-0 bg-gradient-to-br from-blue-600/10 to-purple-600/10 opacity-0 group-hover:opacity-100 transition-opacity">
+        </div>
+        <div class="relative p-8 flex flex-col justify-between flex-1">
+            <header class="space-y-4">
+                <div
+                    class="inline-flex items-center justify-center w-12 h-12 rounded-lg bg-blue-500/10 group-hover:bg-blue-500/20 transition-colors">
+                    <svg class="w-6 h-6 text-blue-400 group-hover:text-blue-300 transition-colors" fill="none"
+                        stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                            d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+                    </svg>
+                </div>
+                <h3 class="text-2xl font-bold text-white group-hover:text-blue-300 transition-colors">Stock Analysis
+                </h3>
+                <p class="text-gray-400 leading-relaxed">Deep dive into individual stocks with comprehensive analysis,
+                    historical data visualization, and key performance metrics.</p>
+            </header>
+            <div class="pt-4">
+                <a href="/stock-analysis"
+                    class="inline-flex items-center px-6 py-3 bg-blue-600/20 text-blue-400 rounded-lg group-hover:bg-blue-500 group-hover:text-white transition-all duration-300 focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 focus:ring-offset-gray-800">
+                    Explore Analytics
+                    <svg class="w-4 h-4 ml-2 transition-transform group-hover:translate-x-1" fill="none"
+                        stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
+                    </svg>
+                </a>
+            </div>
+        </div>
+    </article>
+
+    <!-- Portfolio Optimizer Card -->
+    <article
+        class="group relative bg-gray-800 rounded-xl shadow-lg overflow-hidden transition-all duration-300 hover:shadow-2xl hover:shadow-purple-500/10 hover:-translate-y-1 flex flex-col h-full">
+        <div
+            class="absolute inset-0 bg-gradient-to-br from-purple-600/10 to-pink-600/10 opacity-0 group-hover:opacity-100 transition-opacity">
+        </div>
+        <div class="relative p-8 flex flex-col justify-between flex-1">
+            <header class="space-y-4">
+                <div
+                    class="inline-flex items-center justify-center w-12 h-12 rounded-lg bg-purple-500/10 group-hover:bg-purple-500/20 transition-colors">
+                    <svg class="w-6 h-6 text-purple-400 group-hover:text-purple-300 transition-colors" fill="none"
+                        stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                            d="M11 3.055A9.001 9.001 0 1020.945 13H11V3.055z" />
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                            d="M20.488 9H15V3.512A9.025 9.025 0 0120.488 9z" />
+                    </svg>
+                </div>
+                <h3 class="text-2xl font-bold text-white group-hover:text-purple-300 transition-colors">Portfolio
+                    Optimizer</h3>
+                <p class="text-gray-400 leading-relaxed">Leverage modern portfolio theory to optimize your investments
+                    for maximum returns while managing risk levels.</p>
+            </header>
+            <div class="pt-4">
+                <a href="/portfolio-optimizer"
+                    class="inline-flex items-center px-6 py-3 bg-purple-600/20 text-purple-400 rounded-lg group-hover:bg-purple-500 group-hover:text-white transition-all duration-300 focus:ring-2 focus:ring-purple-500 focus:ring-offset-2 focus:ring-offset-gray-800">
+                    Start Optimizing
+                    <svg class="w-4 h-4 ml-2 transition-transform group-hover:translate-x-1" fill="none"
+                        stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
+                    </svg>
+                </a>
+            </div>
+        </div>
+    </article>
+
+    <!-- Backtesting Card -->
+    <article
+        class="group relative bg-gray-800 rounded-xl shadow-lg overflow-hidden transition-all duration-300 hover:shadow-2xl hover:shadow-green-500/10 hover:-translate-y-1 flex flex-col h-full">
+        <div
+            class="absolute inset-0 bg-gradient-to-br from-green-600/10 to-teal-600/10 opacity-0 group-hover:opacity-100 transition-opacity">
+        </div>
+        <div class="relative p-8 flex flex-col justify-between flex-1">
+            <header class="space-y-4">
+                <div
+                    class="inline-flex items-center justify-center w-12 h-12 rounded-lg bg-green-500/10 group-hover:bg-green-500/20 transition-colors">
+                    <svg class="w-6 h-6 text-green-400 group-hover:text-green-300 transition-colors" fill="none"
+                        stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                            d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    </svg>
+                </div>
+                <h3 class="text-2xl font-bold text-white group-hover:text-green-300 transition-colors">Backtesting</h3>
+                <p class="text-gray-400 leading-relaxed">Validate your investment strategies against historical market
+                    data to optimize future performance.</p>
+            </header>
+            <div class="pt-4">
+                <a href="/backtesting"
+                    class="inline-flex items-center px-6 py-3 bg-green-600/20 text-green-400 rounded-lg group-hover:bg-green-500 group-hover:text-white transition-all duration-300 focus:ring-2 focus:ring-green-500 focus:ring-offset-2 focus:ring-offset-gray-800">
+                    Test Strategies
+                    <svg class="w-4 h-4 ml-2 transition-transform group-hover:translate-x-1" fill="none"
+                        stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
+                    </svg>
+                </a>
+            </div>
+        </div>
+    </article>
+</section>
+
 {% endblock %}
