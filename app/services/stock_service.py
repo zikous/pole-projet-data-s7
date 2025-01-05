@@ -51,7 +51,7 @@ def get_stock_data(ticker):
 
     news = []
     try:
-        stock_news = stock.news[:5]
+        stock_news = stock.news[:]
         for item in stock_news:
             title = item["title"]
             sentiment = finbert_sentiment(title)[0]  # Analyze sentiment of the title
