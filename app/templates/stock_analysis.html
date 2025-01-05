@@ -3,6 +3,7 @@
 {% block title %}Stock Analysis - Portfolio Manager{% endblock %}
 
 {% block content %}
+<!-- Previous content remains the same until the news section -->
 <div class="container mx-auto px-4 py-8">
     <!-- Header Section -->
     <header class="mb-8">
@@ -73,7 +74,7 @@
                 </svg>
                 Stock Price Chart
             </h3>
-            <div id="chartContainer" class="w-full" style="height: 60vh;">
+            <div id="chartContainer" class="w-full h-[60vh]">
                 <div id="priceChart" class="w-full h-full"></div>
             </div>
         </div>
@@ -147,7 +148,6 @@
                         <p><span class="text-gray-400">P/E Ratio:</span> ${info.pe_ratio?.toFixed(2) || 'N/A'}</p>
                         <p><span class="text-gray-400">Dividend Yield:</span> ${StockAnalysis.formatPercentage(info.dividend_yield)}</p>
                         <p><span class="text-gray-400">Beta:</span> ${info.beta?.toFixed(2) || 'N/A'}</p>
-                        <p><span class="text-gray-400">Profit Margin:</span> ${StockAnalysis.formatPercentage(info.profit_margin)}</p>
                     </div>
                     <div class="space-y-2">
                         <p><span class="text-gray-400">Debt/Equity:</span> ${info.debt_to_equity?.toFixed(2) || 'N/A'}</p>
@@ -205,22 +205,49 @@
                 }
             };
 
+            // Clear existing chart before creating new one
+            Plotly.purge('priceChart');
+
+            // Create new chart
             Plotly.newPlot('priceChart', chartData.data, layout, config);
 
             // Force a resize after plot creation
             setTimeout(() => {
-                window.dispatchEvent(new Event('resize'));
-            }, 100);
+                Plotly.Plots.resize('priceChart');
+            }, 0);
+        },
+
+        getSentimentColor: (sentiment) => {
+            const colors = {
+                'Positive': 'text-green-500 border-green-500',
+                'Negative': 'text-red-500 border-red-500',
+                'Neutral': 'text-yellow-500 border-yellow-500'
+            };
+            return colors[sentiment] || 'text-gray-500 border-gray-500';
+        },
+
+        getSentimentBadgeColor: (sentiment) => {
+            const colors = {
+                'Positive': 'bg-green-500',
+                'Negative': 'bg-red-500',
+                'Neutral': 'bg-yellow-500'
+            };
+            return colors[sentiment] || 'bg-gray-500';
         },
 
         displayNews: (news) => {
             StockAnalysis.elements.stockNews().innerHTML = news.map(article => `
-                <li class="border-l-4 border-blue-500 pl-4">
-                    <a href="${article.link}" 
-                       target="_blank" 
-                       class="block hover:bg-gray-700 p-3 rounded transition-colors duration-200">
-                        <h4 class="text-blue-400 hover:text-blue-300 font-medium mb-2">${article.title}</h4>
-                        <p class="text-gray-400 text-sm">${article.date || ''}</p>
+                <li class="bg-gray-700 rounded-lg overflow-hidden hover:bg-gray-600 transition-colors duration-200">
+                    <a href="${article.link}" target="_blank" class="block p-4">
+                        <div class="flex justify-between items-start gap-4">
+                            <h4 class="text-blue-400 font-medium flex-grow">${article.title}</h4>
+                            <div class="flex flex-col items-end gap-2">
+                                <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${StockAnalysis.getSentimentBadgeColor(article.sentiment)} bg-opacity-20 ${StockAnalysis.getSentimentColor(article.sentiment)}">
+                                    ${article.sentiment} (${(article.score * 100).toFixed(1)}%)
+                                </span>
+                            </div>
+                        </div>
+                        <p class="text-gray-400 text-sm mt-2">${article.date || ''}</p>
                     </a>
                 </li>
             `).join('');
