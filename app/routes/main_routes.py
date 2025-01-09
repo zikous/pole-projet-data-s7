@@ -22,3 +22,8 @@ def portfolio_optimizer():
 @main_bp.route("/backtesting")
 def backtesting():
     return render_template("backtesting.html")
+
+
+@main_bp.route("/market-analysis")
+def market_analysis():
+    return render_template("market_analysis.html")
