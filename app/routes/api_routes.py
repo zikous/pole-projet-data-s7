@@ -1,4 +1,3 @@
-# routes/api_routes.py
 from flask import Blueprint, jsonify, request
 from services.market_service import get_correlation_and_clusters
 from services.stock_service import get_stock_data
@@ -7,7 +6,10 @@ from services.chart_service import create_portfolio_chart
 from datetime import datetime
 import logging
 
+# Initialize Blueprint
 api_bp = Blueprint("api", __name__)
+
+# Configure logging
 logging.basicConfig(level=logging.DEBUG)
 logger = logging.getLogger(__name__)
 
@@ -20,6 +22,7 @@ def get_stock_info(ticker):
             {"success": True, "info": basic_info, "chart": price_chart, "news": news}
         )
     except Exception as e:
+        logger.error(f"Error fetching stock info for {ticker}: {e}")
         return jsonify({"success": False, "error": str(e)})
 
 
@@ -70,7 +73,7 @@ def optimize_portfolio():
         return jsonify(response)
 
     except Exception as e:
-        logger.error(f"Error in optimization: {str(e)}", exc_info=True)
+        logger.error(f"Error optimizing portfolio: {e}")
         return jsonify({"success": False, "error": str(e)})
 
 
@@ -102,15 +105,20 @@ def get_market_correlation():
         # Import the analysis function here to avoid circular imports
         from services.market_service import get_correlation_and_clusters
 
+        # Perform correlation and clustering analysis
         result = get_correlation_and_clusters(
             data["tickers"], data["start_date"], data["end_date"]
         )
 
+        # Check if the analysis was successful
         if not result.get("success"):
             return jsonify(result)
 
+        # Return the result of the analysis
         return jsonify(result)
 
     except Exception as e:
+        # Log the error with stack trace
         logger.error(f"Error in correlation analysis: {str(e)}", exc_info=True)
+        # Return error response
         return jsonify({"success": False, "error": str(e)})
