@@ -99,14 +99,32 @@ class PortfolioOptimizer:
 
     @staticmethod
     def generate_random_weights(num_assets: int) -> np.ndarray:
-        """Generate random weights that sum to 1"""
+        """
+        Generate random weights that sum to 1
+
+        Args:
+            num_assets: Number of assets in portfolio
+
+        Returns:
+            Array of random weights summing to 1
+        """
         return np.random.dirichlet(np.ones(num_assets))
 
     @staticmethod
     def calculate_portfolio_performance(
         weights: np.ndarray, daily_returns: pd.DataFrame, risk_free_rate: float
     ) -> PortfolioPerformance:
-        """Calculate portfolio performance metrics"""
+        """
+        Calculate portfolio performance metrics
+
+        Args:
+            weights: Array of portfolio weights
+            daily_returns: DataFrame of daily returns
+            risk_free_rate: Annual risk-free rate (as decimal)
+
+        Returns:
+            PortfolioPerformance object with return, risk, and Sharpe ratio
+        """
         # Calculate annualized metrics
         annualized_returns = (1 + daily_returns.mean()) ** TRADING_DAYS_PER_YEAR - 1
         annualized_covariance = daily_returns.cov() * TRADING_DAYS_PER_YEAR
@@ -127,9 +145,23 @@ class PortfolioOptimizer:
 
     @staticmethod
     def optimize_max_sharpe_ratio(
-        daily_returns: pd.DataFrame, num_assets: int, risk_free_rate: float
+        daily_returns: pd.DataFrame,
+        num_assets: int,
+        risk_free_rate: float,
+        initial_weights: Optional[np.ndarray] = None,
     ) -> OptimizeResult:
-        """Optimize portfolio weights for maximum Sharpe ratio"""
+        """
+        Optimize portfolio weights for maximum Sharpe ratio
+
+        Args:
+            daily_returns: DataFrame of daily returns
+            num_assets: Number of assets in portfolio
+            risk_free_rate: Annual risk-free rate (as decimal)
+            initial_weights: Optional starting weights for optimization
+
+        Returns:
+            OptimizeResult from optimization
+        """
 
         def negative_sharpe_ratio(weights: np.ndarray) -> float:
             perf = PortfolioOptimizer.calculate_portfolio_performance(
@@ -140,19 +172,54 @@ class PortfolioOptimizer:
         constraints = [{"type": "eq", "fun": lambda w: np.sum(w) - 1.0}]
         bounds = [(0.0, 1.0) for _ in range(num_assets)]
 
-        return minimize(
-            negative_sharpe_ratio,
-            PortfolioOptimizer.generate_random_weights(num_assets),
-            method="SLSQP",
-            constraints=constraints,
-            bounds=bounds,
+        start_weights = (
+            initial_weights
+            if initial_weights is not None
+            else PortfolioOptimizer.generate_random_weights(num_assets)
         )
+
+        try:
+            result = minimize(
+                negative_sharpe_ratio,
+                start_weights,
+                method="SLSQP",
+                constraints=constraints,
+                bounds=bounds,
+                options={"ftol": 1e-8, "maxiter": 1000},
+            )
+
+            if not result.success:
+                print(f"Warning: Sharpe ratio optimization failed: {result.message}")
+
+            return result
+
+        except Exception as e:
+            print(f"Error in Sharpe ratio optimization: {str(e)}")
+            weights = np.ones(num_assets) / num_assets
+            return OptimizeResult(
+                x=weights,
+                success=False,
+                message=str(e),
+                fun=negative_sharpe_ratio(weights),
+            )
 
     @staticmethod
     def optimize_min_risk(
-        daily_returns: pd.DataFrame, num_assets: int
+        daily_returns: pd.DataFrame,
+        num_assets: int,
+        initial_weights: Optional[np.ndarray] = None,
     ) -> OptimizeResult:
-        """Optimize portfolio weights for minimum risk"""
+        """
+        Optimize portfolio weights for minimum risk
+
+        Args:
+            daily_returns: DataFrame of daily returns
+            num_assets: Number of assets in portfolio
+            initial_weights: Optional starting weights for optimization
+
+        Returns:
+            OptimizeResult from optimization
+        """
 
         def portfolio_risk(weights: np.ndarray) -> float:
             return PortfolioOptimizer.calculate_portfolio_performance(
@@ -162,17 +229,40 @@ class PortfolioOptimizer:
         constraints = [{"type": "eq", "fun": lambda w: np.sum(w) - 1.0}]
         bounds = [(0.0, 1.0) for _ in range(num_assets)]
 
-        return minimize(
-            portfolio_risk,
-            PortfolioOptimizer.generate_random_weights(num_assets),
-            method="SLSQP",
-            constraints=constraints,
-            bounds=bounds,
+        start_weights = (
+            initial_weights
+            if initial_weights is not None
+            else PortfolioOptimizer.generate_random_weights(num_assets)
         )
+
+        try:
+            result = minimize(
+                portfolio_risk,
+                start_weights,
+                method="SLSQP",
+                constraints=constraints,
+                bounds=bounds,
+                options={"ftol": 1e-8, "maxiter": 1000},
+            )
+
+            if not result.success:
+                print(f"Warning: Minimum risk optimization failed: {result.message}")
+
+            return result
+
+        except Exception as e:
+            print(f"Error in minimum risk optimization: {str(e)}")
+            weights = np.ones(num_assets) / num_assets
+            return OptimizeResult(
+                x=weights, success=False, message=str(e), fun=portfolio_risk(weights)
+            )
 
     @staticmethod
     def optimize_for_target_return(
-        daily_returns: pd.DataFrame, num_assets: int, target_return: float
+        daily_returns: pd.DataFrame,
+        num_assets: int,
+        target_return: float,
+        initial_weights: Optional[np.ndarray] = None,
     ) -> OptimizeResult:
         """
         Optimize portfolio weights to minimize risk for a given target return
@@ -181,9 +271,10 @@ class PortfolioOptimizer:
             daily_returns: DataFrame of daily returns
             num_assets: Number of assets in portfolio
             target_return: Target annualized return (as decimal)
+            initial_weights: Optional starting weights for optimization
 
         Returns:
-            OptimizeResult from scipy.optimize.minimize
+            OptimizeResult from optimization
         """
 
         def portfolio_risk(weights: np.ndarray) -> float:
@@ -195,7 +286,6 @@ class PortfolioOptimizer:
             portfolio_return = PortfolioOptimizer.calculate_portfolio_performance(
                 weights, daily_returns, 0
             ).return_value
-            # Add small tolerance to make optimization more stable
             return portfolio_return - target_return
 
         constraints = [
@@ -204,12 +294,18 @@ class PortfolioOptimizer:
         ]
         bounds = [(0.0, 1.0) for _ in range(num_assets)]
 
+        start_weights = (
+            initial_weights
+            if initial_weights is not None
+            else PortfolioOptimizer.generate_random_weights(num_assets)
+        )
+
         try:
             # Try multiple random starting points if optimization fails
             for _ in range(5):
                 result = minimize(
                     portfolio_risk,
-                    PortfolioOptimizer.generate_random_weights(num_assets),
+                    start_weights,
                     method="SLSQP",
                     constraints=constraints,
                     bounds=bounds,
@@ -230,7 +326,7 @@ class PortfolioOptimizer:
 
             result = minimize(
                 portfolio_risk,
-                PortfolioOptimizer.generate_random_weights(num_assets),
+                start_weights,
                 method="SLSQP",
                 constraints=constraints,
                 bounds=bounds,
