@@ -19,7 +19,7 @@ Ce projet combine des techniques avancées de finance, d'analyse de données et 
 
 1. Clonez le dépôt :
    ```bash
-   git clone <url_du_dépôt>
+   git clone https://github.com/zikous/pole-projet-data-s7
    ```
 2. Installez les dépendances :
    ```bash
