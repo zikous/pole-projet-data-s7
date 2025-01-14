@@ -1,5 +1,6 @@
 import os
 from functools import lru_cache
+import time
 from transformers import pipeline
 import yfinance as yf
 from services.chart_service import create_price_chart
@@ -37,21 +38,24 @@ NUMBERS_PATTERN = re.compile(r"\d+")  # Matches numbers
 # Function to load or download the FinBERT model with caching
 @lru_cache(maxsize=1)  # Cache the model loading to avoid reloading for subsequent calls
 def load_or_download_model():
-    """Cache the model loading to avoid reloading for subsequent calls."""
+    """Try to load local model first, if fails download it again."""
     try:
-        # Check if the model directory exists, if not, download and save the model
-        if not os.path.exists(MODEL_DIR):
-            os.makedirs(
-                MODEL_DIR, exist_ok=True
-            )  # Create the directory if it doesn't exist
-            pipeline("sentiment-analysis", model=MODEL_NAME).save_pretrained(
-                MODEL_DIR
-            )  # Download and save model
-        return pipeline(
-            "sentiment-analysis", model=MODEL_DIR
-        )  # Return the loaded model
+        # Try loading from local directory first
+        if os.path.exists(MODEL_DIR):
+            try:
+                return pipeline("sentiment-analysis", model=MODEL_DIR)
+            except Exception as e:
+                print(f"Error loading local model: {str(e)}")
+                print("Attempting to redownload model...")
+
+        # If local load fails or directory doesn't exist, download and save
+        os.makedirs(MODEL_DIR, exist_ok=True)
+        model = pipeline("sentiment-analysis", model=MODEL_NAME)
+        model.save_pretrained(MODEL_DIR)
+        return model
+
     except Exception as e:
-        print(f"Error loading model: {str(e)}")  # Log any errors during model loading
+        print(f"Error in load_or_download_model: {str(e)}")
         raise
 
 
