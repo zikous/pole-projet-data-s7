@@ -11,42 +11,71 @@ from nltk.corpus import stopwords
 from concurrent.futures import ThreadPoolExecutor
 from typing import Dict, List, Tuple, Optional
 
-# Constants for model, file paths, and settings
-MODEL_NAME = (
-    "yiyanghkust/finbert-tone"  # Pre-trained FinBERT model for sentiment analysis
-)
-MODEL_DIR = "./models/finbert-tone"  # Directory to store the model locally
-MAX_TEXT_LENGTH = 500  # Max length of text for sentiment analysis
-REQUEST_TIMEOUT = 10  # Timeout for HTTP requests
+# Constants
+USE_GPU = True  # Set to False if you want to use CPU
+MODEL_NAME = "yiyanghkust/finbert-tone"
+MODEL_DIR = "./models/finbert-tone"
+MAX_TEXT_LENGTH = 500
+REQUEST_TIMEOUT = 10
 HEADERS = {"User-Agent": "Mozilla/5.0 (compatible; Python-requests/2.28.1)"}
 
-# Initialize NLTK once to avoid repeated downloads
-nltk.download("stopwords", quiet=True)  # Download stopwords for text processing
-stop_words = set(stopwords.words("english"))  # Set of English stopwords
+# Initialize NLTK
+try:
+    nltk.download("stopwords", quiet=True)
+    stop_words = set(stopwords.words("english"))
+except Exception as e:
+    print(f"Error downloading stopwords: {str(e)}")
+    stop_words = set()
 
-# Compile regular expressions for text cleaning
-SPECIAL_CHARS_PATTERN = re.compile(
-    r"[^\w\s]"
-)  # Matches special characters (non-word and non-space)
-NUMBERS_PATTERN = re.compile(r"\d+")  # Matches numbers
+# Compile regex patterns
+SPECIAL_CHARS_PATTERN = re.compile(r"[^\w\s]")
+NUMBERS_PATTERN = re.compile(r"\d+")
 
 
-# Function to load or download the FinBERT model with caching
-@lru_cache(maxsize=1)  # Cache the model loading to avoid reloading for subsequent calls
+def clean_text(text: str) -> str:
+    """Clean text removing special characters and stopwords."""
+    if not text:
+        return ""
+
+    try:
+        text = SPECIAL_CHARS_PATTERN.sub(" ", text.lower())
+        text = NUMBERS_PATTERN.sub(" ", text)
+        words = [
+            word
+            for word in text.split()
+            if word and word not in stop_words and len(word) > 2
+        ]
+        return " ".join(words)
+    except Exception as e:
+        print(f"Error cleaning text: {str(e)}")
+        return ""
+
+
+def truncate_text(text: str, max_length: int = MAX_TEXT_LENGTH) -> str:
+    """Truncate text to maximum length at word boundary."""
+    if len(text) <= max_length:
+        return text
+    return text[:max_length].rsplit(" ", 1)[0]
+
+
 def load_or_download_model():
     """Try to load local model first, if fails download it again."""
     try:
-        # Try loading from local directory first
-        if os.path.exists(MODEL_DIR):
+        os.makedirs(MODEL_DIR, exist_ok=True)
+
+        # Set device according to USE_GPU flag
+        device = 0 if USE_GPU else -1  # 0 for GPU, -1 for CPU
+
+        if os.path.exists(MODEL_DIR) and os.path.isfile(
+            os.path.join(MODEL_DIR, "config.json")
+        ):
             try:
-                return pipeline("sentiment-analysis", model=MODEL_DIR)
+                return pipeline("sentiment-analysis", model=MODEL_DIR, device=device)
             except Exception as e:
                 print(f"Error loading local model: {str(e)}")
                 print("Attempting to redownload model...")
 
-        # If local load fails or directory doesn't exist, download and save
-        os.makedirs(MODEL_DIR, exist_ok=True)
-        model = pipeline("sentiment-analysis", model=MODEL_NAME)
+        model = pipeline("sentiment-analysis", model=MODEL_NAME, device=device)
         model.save_pretrained(MODEL_DIR)
         return model
 
@@ -55,204 +84,158 @@ def load_or_download_model():
         raise
 
 
-# Try loading the model at module level to ensure it's available for use
+# Global model instance
+finbert_sentiment = None
 try:
-    finbert_sentiment = load_or_download_model()  # Initialize the sentiment model
+    finbert_sentiment = load_or_download_model()
 except Exception as e:
-    print(
-        f"Failed to load sentiment model: {str(e)}"
-    )  # Log failure if the model fails to load
-    raise
-
-
-def clean_text(text: str) -> str:
-    """Optimized text cleaning function."""
-
-    # Check if the text is empty or None, return an empty string if true
-    if not text:
-        return ""
-
-    # Apply regex substitutions to clean the text:
-    # - Remove special characters and convert text to lowercase
-    text = SPECIAL_CHARS_PATTERN.sub(" ", text.lower())
-    # - Remove numbers from the text
-    text = NUMBERS_PATTERN.sub(" ", text)
-
-    # Efficient word filtering:
-    # - Split the text into words
-    # - Retain only words that are not in stopwords, have more than 2 characters, and are non-empty
-    words = [
-        word
-        for word in text.split()
-        if word and word not in stop_words and len(word) > 2
-    ]
-
-    # Join the filtered words back into a single string with spaces in between
-    return " ".join(words)
-
-
-def truncate_text(text: str, max_length: int = MAX_TEXT_LENGTH) -> str:
-    """Efficiently truncate text to maximum length."""
-
-    # Check if the text length is already within the maximum limit
-    if len(text) <= max_length:
-        return (
-            text  # No truncation needed if text is shorter than or equal to max_length
-        )
-
-    # If text is too long, truncate it at the last complete word within the max_length
-    return text[:max_length].rsplit(" ", 1)[0]
+    print(f"Failed to load sentiment model: {str(e)}")
 
 
 def fetch_article_content(url: str) -> Optional[str]:
     """Fetch article content with timeout and error handling."""
-
     try:
-        # Send a GET request to the URL with a timeout and custom headers
         with requests.get(url, timeout=REQUEST_TIMEOUT, headers=HEADERS) as response:
-
-            # Check if the HTTP status code is 200 (OK)
             if response.status_code != 200:
-                return None  # If not 200, return None to indicate failure
+                return None
 
-            # Use SoupStrainer to limit parsing to only <p> tags
+            # Try to parse the full article text from <p> tags
             soup = BeautifulSoup(
-                response.content,
-                "html.parser",
-                parse_only=SoupStrainer("p"),  # Parse only <p> tags for content
+                response.content, "html.parser", parse_only=SoupStrainer("p")
             )
-
-            # Extract and join text from all <p> tags, removing any empty or whitespace-only text
-            return " ".join(
+            paragraphs = [
                 p.get_text() for p in soup.find_all("p") if p.get_text().strip()
-            )
+            ]
+
+            if paragraphs:
+                return " ".join(paragraphs)
+            else:
+                return None
 
     except Exception as e:
-        # Log the error in case of failure (e.g., network issues, invalid response)
         print(f"Error fetching article content: {str(e)}")
-        return None  # Return None to indicate an error
+        return None
 
 
 def process_news_item(item: Dict) -> Optional[Dict]:
     """Process a single news item with sentiment analysis."""
+    global finbert_sentiment
 
     try:
-        # Check if the input item is a dictionary and contains 'title' and 'link'
-        if not isinstance(item, dict) or "title" not in item or "link" not in item:
-            return None  # Return None if the item is not in the expected format
-
-        # Extract the title and content from the news item
-        title = item["title"]
-        content = fetch_article_content(
-            item["link"]
-        )  # Fetch article content from the URL
-
-        # Combine title and content for sentiment analysis, if content is available
-        sentiment_text = f"{title} {content}" if content else title
-
-        # Clean the combined text to remove unwanted characters and words
-        cleaned_text = clean_text(sentiment_text)
-
-        # Truncate the cleaned text to a maximum length
-        truncated_text = truncate_text(cleaned_text)
-
-        # If the truncated text is empty, return None as no meaningful text exists
-        if not truncated_text:
+        if (
+            not isinstance(item, dict)
+            or "content" not in item
+            or "title" not in item["content"]
+            or "canonicalUrl" not in item["content"]
+        ):
+            print(f"Invalid News Item Format: {item}")
             return None
 
-        # Perform sentiment analysis using the FinBERT model
-        sentiment = finbert_sentiment(truncated_text)[0]
+        title = item["content"]["title"]
+        link = item["content"]["canonicalUrl"]["url"]
 
-        # Return the processed result, including the sentiment label and score
+        # Try to fetch the article content using the updated method
+        content = fetch_article_content(link)
+        print(f"Fetched Content: {content}")
+
+        # If content is fetched successfully, combine it with the title, otherwise use title only
+        sentiment_text = f"{title} {content}" if content else title
+        cleaned_text = clean_text(sentiment_text)
+        print(f"Cleaned Text: {cleaned_text}")
+
+        truncated_text = truncate_text(cleaned_text)
+        print(f"Truncated Text: {truncated_text}")
+
+        if not truncated_text:
+            print("No text after truncation, skipping sentiment analysis.")
+            return None
+
+        # Reload model if it's None
+        if finbert_sentiment is None:
+            print("Model is not loaded!")
+            finbert_sentiment = load_or_download_model()
+
+        sentiment = finbert_sentiment(truncated_text)
+        print(f"Sentiment Analysis Result: {sentiment}")
+
         return {
             "title": title,
-            "link": item["link"],
-            "sentiment": sentiment["label"],
-            "score": sentiment["score"],
+            "link": link,
+            "sentiment": sentiment[0]["label"],
+            "score": float(sentiment[0]["score"]),
         }
 
     except Exception as e:
-        # Handle any errors that occur during the processing of the news item
         print(f"Error processing news item: {str(e)}")
-        return None  # Return None if an error occurs
+        return None
 
 
 def get_stock_data(ticker: str) -> Tuple[Dict, object, object, List[Dict]]:
-    """Optimized stock data retrieval function."""
-
+    """Get stock data with improved error handling."""
     try:
-        # Fetch stock data using yfinance Ticker object
         stock = yf.Ticker(ticker)
 
-        # Retrieve basic information and historical data concurrently
-        with ThreadPoolExecutor(max_workers=2) as executor:
-            # Submit the fetching tasks for stock info and historical data
+        # Fetch stock info and historical data concurrently
+        with ThreadPoolExecutor() as executor:
             info_future = executor.submit(lambda: stock.info)
             hist_future = executor.submit(lambda: stock.history(period="1y"))
 
-            # Wait for results to be fetched
             info = info_future.result()
             hist = hist_future.result()
 
-        # Process the basic information and extract relevant details
+        # Process stock information
         basic_info = {
-            "name": info.get("longName", "N/A"),  # Full company name
-            "sector": info.get("sector", "N/A"),  # Sector the company belongs to
-            "market_cap": info.get("marketCap", "N/A"),  # Market capitalization
-            "pe_ratio": info.get("trailingPE", "N/A"),  # Price-to-earnings ratio
-            "dividend_yield": info.get("dividendYield", "N/A"),  # Dividend yield
-            "beta": info.get("beta", "N/A"),  # Stock's beta value (volatility measure)
-            "profit_margin": info.get("profitMargins", "N/A"),  # Profit margin
-            "debt_to_equity": info.get("debtToEquity", "N/A"),  # Debt-to-equity ratio
-            "roe": info.get("returnOnEquity", "N/A"),  # Return on equity
-            "roa": info.get("returnOnAssets", "N/A"),  # Return on assets
+            "name": info.get("longName", "N/A"),
+            "sector": info.get("sector", "N/A"),
+            "market_cap": (
+                float(info.get("marketCap", 0)) if info.get("marketCap") else "N/A"
+            ),
+            "pe_ratio": (
+                float(info.get("trailingPE", 0)) if info.get("trailingPE") else "N/A"
+            ),
+            "dividend_yield": (
+                float(info.get("dividendYield", 0))
+                if info.get("dividendYield")
+                else "N/A"
+            ),
+            "beta": float(info.get("beta", 0)) if info.get("beta") else "N/A",
+            "profit_margin": (
+                float(info.get("profitMargins", 0))
+                if info.get("profitMargins")
+                else "N/A"
+            ),
+            "debt_to_equity": (
+                float(info.get("debtToEquity", 0))
+                if info.get("debtToEquity")
+                else "N/A"
+            ),
+            "roe": (
+                float(info.get("returnOnEquity", 0))
+                if info.get("returnOnEquity")
+                else "N/A"
+            ),
+            "roa": (
+                float(info.get("returnOnAssets", 0))
+                if info.get("returnOnAssets")
+                else "N/A"
+            ),
         }
 
-        # If historical data exists, calculate technical indicators (50-day and 200-day SMAs)
         if not hist.empty:
-            hist["SMA_50"] = (
-                hist["Close"].rolling(window=50).mean()
-            )  # 50-day Simple Moving Average
-            hist["SMA_200"] = (
-                hist["Close"].rolling(window=200).mean()
-            )  # 200-day Simple Moving Average
+            hist["SMA_50"] = hist["Close"].rolling(window=50).mean()
+            hist["SMA_200"] = hist["Close"].rolling(window=200).mean()
 
-        # Attempt to create a price chart with historical data
-        try:
-            price_chart = create_price_chart(
-                hist
-            )  # Create a chart for stock price over time
-        except Exception as e:
-            print(
-                f"Error creating price chart: {str(e)}"
-            )  # Catch any errors during chart creation
-            price_chart = None  # Set price chart to None if there is an error
+        price_chart = create_price_chart(hist)
 
-        # Process the latest news articles concurrently
-        news = []
-        try:
-            # Limit the number of news articles and handle potential None case
-            stock_news = getattr(stock, "news", []) or []
+        # Process stock news
+        stock_news = getattr(stock, "news", []) or []
+        news = [
+            process_news_item(item) for item in stock_news if process_news_item(item)
+        ]
 
-            # Process each news item sequentially with better error handling
-            for item in stock_news:
-                try:
-                    processed_item = process_news_item(item)
-                    if processed_item:
-                        news.append(processed_item)
-                except Exception as item_error:
-                    print(f"Error processing individual news item: {str(item_error)}")
-                    continue
-
-        except Exception as e:
-            print(
-                f"Error processing news: {str(e)}"
-            )  # Catch errors related to news processing
-        # Return the processed data: basic info, historical data, price chart, and news
+        print(f"Successfully processed {len(news)} news items")
         return basic_info, hist, price_chart, news
 
     except Exception as e:
-        print(
-            f"Error fetching stock data for {ticker}: {str(e)}"
-        )  # Handle any exceptions during stock data retrieval
-        raise  # Re-raise the exception for upstream handling
+        print(f"Error in get_stock_data: {str(e)}")
+        raise
