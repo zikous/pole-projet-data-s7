@@ -18,11 +18,8 @@ MODEL_NAME = (
 )
 MODEL_DIR = "./models/finbert-tone"  # Directory to store the model locally
 MAX_TEXT_LENGTH = 500  # Max length of text for sentiment analysis
-MAX_NEWS_ITEMS = 10  # Limit on number of news articles to fetch
 REQUEST_TIMEOUT = 10  # Timeout for HTTP requests
-HEADERS = {
-    "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36"
-}  # Custom user agent for HTTP requests
+HEADERS = {"User-Agent": "Mozilla/5.0 (compatible; Python-requests/2.28.1)"}
 
 # Initialize NLTK once to avoid repeated downloads
 nltk.download("stopwords", quiet=True)  # Download stopwords for text processing
@@ -235,21 +232,16 @@ def get_stock_data(ticker: str) -> Tuple[Dict, object, object, List[Dict]]:
         # Process the latest news articles concurrently
         news = []
         try:
-            stock_news = stock.news[
-                :MAX_NEWS_ITEMS
-            ]  # Limit the number of news articles
-            with ThreadPoolExecutor(max_workers=min(len(stock_news), 5)) as executor:
-                # Submit news processing tasks in parallel
-                news_futures = [
-                    executor.submit(process_news_item, item) for item in stock_news
-                ]
+            # Limit the number of news articles
+            stock_news = stock.news[:]
 
-                # Collect results from the futures, ignoring any that returned None
-                news = [
-                    result.result()
-                    for result in news_futures
-                    if result.result() is not None
-                ]
+            # Process each news item sequentially
+            news = [
+                process_news_item(item)
+                for item in stock_news
+                if process_news_item(item) is not None
+            ]
+
         except Exception as e:
             print(
                 f"Error processing news: {str(e)}"
