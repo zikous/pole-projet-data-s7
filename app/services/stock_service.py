@@ -1,6 +1,5 @@
 import os
 from functools import lru_cache
-import time
 from transformers import pipeline
 import yfinance as yf
 from services.chart_service import create_price_chart
@@ -232,21 +231,23 @@ def get_stock_data(ticker: str) -> Tuple[Dict, object, object, List[Dict]]:
         # Process the latest news articles concurrently
         news = []
         try:
-            # Limit the number of news articles
-            stock_news = stock.news[:]
+            # Limit the number of news articles and handle potential None case
+            stock_news = getattr(stock, "news", []) or []
 
-            # Process each news item sequentially
-            news = [
-                process_news_item(item)
-                for item in stock_news
-                if process_news_item(item) is not None
-            ]
+            # Process each news item sequentially with better error handling
+            for item in stock_news:
+                try:
+                    processed_item = process_news_item(item)
+                    if processed_item:
+                        news.append(processed_item)
+                except Exception as item_error:
+                    print(f"Error processing individual news item: {str(item_error)}")
+                    continue
 
         except Exception as e:
             print(
                 f"Error processing news: {str(e)}"
             )  # Catch errors related to news processing
-
         # Return the processed data: basic info, historical data, price chart, and news
         return basic_info, hist, price_chart, news
 
