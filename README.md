@@ -24,6 +24,7 @@ Le projet est organisé en plusieurs dossiers pour une meilleure gestion des dif
 - **optimization + backtest** : Contient les scripts pour l'optimisation de portefeuille et les expérimentations de backtesting.
 - **random forest approach** : Inclut les notebooks et scripts pour l'approche Random Forest dans l'analyse des données.
 - **sentiment** : Dédié à l'analyse des sentiments avec FinBERT, y compris le prétraitement des données et la classification.
+- **demo + slides + report** : Contient une vidéo démo, les diapositives de présentation et le rapport final du projet.
 
 ## Guide d'Utilisation
 
