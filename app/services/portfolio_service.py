@@ -1,150 +1,168 @@
 from services.utils import (
-    PortfolioConfig,
-    PortfolioSimulator,
-    DataLoader,
-    PortfolioOptimizer,
+    PortfolioConfig,  # Importe la classe pour configurer le portefeuille
+    PortfolioSimulator,  # Importe la classe pour simuler le portefeuille
+    DataLoader,  # Importe la classe pour charger les données
+    PortfolioOptimizer,  # Importe la classe pour optimiser le portefeuille
 )
-import numpy as np
-from services.chart_service import create_portfolio_chart
-import logging
+import numpy as np  # Importe numpy pour les calculs numériques
+from services.chart_service import (
+    create_portfolio_chart,
+)  # Importe la fonction pour créer des graphiques
+import logging  # Importe logging pour la journalisation des erreurs
 
 
 def run_optimization(
     tickers, initial_capital, start_date, end_date, target_return=None
 ):
-    # Initialize a logger for debugging purposes
+    """
+    Exécute l'optimisation du portefeuille pour une liste de tickers donnée.
+    Args:
+        tickers (list): Liste des symboles boursiers à inclure dans le portefeuille.
+        initial_capital (float): Capital initial pour le portefeuille.
+        start_date (datetime): Date de début pour les données historiques.
+        end_date (datetime): Date de fin pour les données historiques.
+        target_return (float, optional): Rendement cible pour l'optimisation. Par défaut, None.
+    Returns:
+        dict: Résultats de l'optimisation (poids, performances, etc.).
+    """
+    # Initialise un logger pour le débogage
     logger = logging.getLogger(__name__)
 
-    # Log the function parameters for debugging
+    # Log les paramètres de la fonction pour le débogage
     logger.debug(
         f"""
-    Running optimization with:
+    Exécution de l'optimisation avec :
     - tickers: {tickers}
-    - initial_capital: {initial_capital}
-    - start_date: {start_date}
-    - end_date: {end_date}
-    - target_return: {target_return}
+    - capital initial: {initial_capital}
+    - date de début: {start_date}
+    - date de fin: {end_date}
+    - rendement cible: {target_return}
     """
     )
 
     try:
-        # Step 1: Load the stock price data
-        data_loader = DataLoader()  # Instantiate a data loader object
+        # Étape 1 : Charge les données de prix des actions
+        data_loader = DataLoader()  # Instancie un chargeur de données
         prices = data_loader.load_data(
             tickers, start_date.strftime("%Y-%m-%d"), end_date.strftime("%Y-%m-%d")
-        )  # Load the price data for the specified tickers and date range
+        )  # Charge les données de prix pour les tickers et la période spécifiée
 
-        # Check if the price data is empty and raise an error if true
+        # Vérifie si les données de prix sont vides et lève une erreur si c'est le cas
         if prices.empty:
-            raise ValueError("No price data found for the given tickers and date range")
+            raise ValueError(
+                "Aucune donnée de prix trouvée pour les tickers et la période donnée"
+            )
 
-        # Step 2: Calculate daily returns based on price data
+        # Étape 2 : Calcule les rendements quotidiens à partir des données de prix
         daily_returns = data_loader.calculate_daily_returns(
             prices
-        )  # Calculate daily returns
+        )  # Calcule les rendements quotidiens
         risk_free_rate = data_loader.get_risk_free_rate(
             start_date.strftime("%Y-%m-%d"), end_date.strftime("%Y-%m-%d")
-        )  # Get the risk-free rate for the specified date range
+        )  # Obtient le taux sans risque pour la période spécifiée
 
-        # Step 3: Instantiate a portfolio optimizer object
+        # Étape 3 : Instancie un optimiseur de portefeuille
         optimizer = PortfolioOptimizer()
-        num_assets = len(tickers)  # Get the number of assets (stocks)
+        num_assets = len(tickers)  # Obtient le nombre d'actifs (actions)
 
-        # Initialize dictionaries to store the weights and performance of different strategies
+        # Initialise des dictionnaires pour stocker les poids et les performances des stratégies
         weights = {}
         performance = {}
 
-        # Step 4: Perform optimization for various strategies
+        # Étape 4 : Effectue l'optimisation pour différentes stratégies
 
-        # Maximize Sharpe ratio (optimize for highest return per unit of risk)
+        # Maximise le ratio de Sharpe (optimise pour le meilleur rendement par unité de risque)
         sharpe_result = optimizer.optimize_max_sharpe_ratio(
             daily_returns, num_assets, risk_free_rate
         )
         if not hasattr(sharpe_result, "x"):
-            raise ValueError("Sharpe ratio optimization failed")
+            raise ValueError("L'optimisation du ratio de Sharpe a échoué")
         weights["sharpe"] = (
             sharpe_result.x.tolist()
-        )  # Store the weights for the Sharpe ratio strategy
+        )  # Stocke les poids pour la stratégie Sharpe
 
-        # Equal-weight portfolio (assign equal weights to each asset)
+        # Portefeuille à pondération égale (attribue des poids égaux à chaque actif)
         equal_weights = np.ones(num_assets) / num_assets
         weights["equal_weight"] = equal_weights.tolist()
 
-        # Minimize risk (optimize for the lowest volatility portfolio)
+        # Minimise le risque (optimise pour le portefeuille avec la plus faible volatilité)
         min_risk_result = optimizer.optimize_min_risk(daily_returns, num_assets)
         if not hasattr(min_risk_result, "x"):
-            raise ValueError("Minimum risk optimization failed")
+            raise ValueError("L'optimisation du risque minimum a échoué")
         weights["min_risk"] = (
             min_risk_result.x.tolist()
-        )  # Store the weights for the minimum risk strategy
+        )  # Stocke les poids pour la stratégie de risque minimum
 
-        # Target return optimization (optimize for a specific target return)
+        # Optimisation pour un rendement cible (optimise pour un rendement spécifique)
         if target_return is not None:
             target_result = optimizer.optimize_for_target_return(
                 daily_returns, num_assets, target_return
             )
             if not hasattr(target_result, "x"):
-                raise ValueError("Target return optimization failed")
+                raise ValueError("L'optimisation du rendement cible a échoué")
             weights["target_return"] = (
                 target_result.x.tolist()
-            )  # Store the weights for the target return strategy
+            )  # Stocke les poids pour la stratégie de rendement cible
 
-        # Step 5: Calculate performance metrics for each strategy
+        # Étape 5 : Calcule les métriques de performance pour chaque stratégie
         for strategy, w in weights.items():
-            w_array = np.array(w)  # Convert the weights to a numpy array
+            w_array = np.array(w)  # Convertit les poids en un tableau numpy
             perf = optimizer.calculate_portfolio_performance(
                 w_array, daily_returns, risk_free_rate
-            )  # Calculate the portfolio performance (return, risk, Sharpe ratio)
+            )  # Calcule la performance du portefeuille (rendement, risque, ratio de Sharpe)
             performance[strategy] = {
-                "return": float(perf.return_value),
-                "risk": float(perf.risk),
-                "sharpe_ratio": float(perf.sharpe_ratio),
+                "return": float(perf.return_value),  # Rendement
+                "risk": float(perf.risk),  # Risque
+                "sharpe_ratio": float(perf.sharpe_ratio),  # Ratio de Sharpe
             }
 
-        # Step 6: Compile the optimization results into a dictionary
+        # Étape 6 : Compile les résultats de l'optimisation dans un dictionnaire
         result = {"weights": weights, "performance": performance, "tickers": tickers}
 
-        # Log the optimization results for debugging
-        logger.debug(f"Optimization result: {result}")
+        # Log les résultats de l'optimisation pour le débogage
+        logger.debug(f"Résultat de l'optimisation : {result}")
 
-        # Return the results
+        # Retourne les résultats
         return result
 
     except Exception as e:
-        # Log the error if an exception occurs during the optimization process
-        logger.error(f"Error in optimization calculation: {str(e)}", exc_info=True)
+        # Log l'erreur si une exception se produit pendant l'optimisation
+        logger.error(
+            f"Erreur dans le calcul de l'optimisation : {str(e)}", exc_info=True
+        )
 
-        # Re-raise the exception so that it can be handled elsewhere
+        # Relance l'exception pour qu'elle puisse être gérée ailleurs
         raise
 
 
 def run_backtest(data):
-    # Step 1: Create a PortfolioConfig object with parameters from the input data
+    """
+    Exécute un backtest du portefeuille en fonction des paramètres fournis.
+    Args:
+        data (dict): Dictionnaire contenant les paramètres du backtest.
+    Returns:
+        tuple: Statistiques récapitulatives et graphique de performance du portefeuille.
+    """
+    # Étape 1 : Crée un objet PortfolioConfig avec les paramètres fournis
     config = PortfolioConfig(
-        initial_capital=float(
-            data["initial_capital"]
-        ),  # Initial capital for the portfolio
-        lookback_months=int(
-            data["lookback_months"]
-        ),  # Lookback period in months for historical data
-        total_months=int(
-            data["total_months"]
-        ),  # Total period for backtesting in months
-        start_year=int(data["start_year"]),  # Starting year for backtest
-        tickers=data["tickers"],  # List of stock tickers to include in the portfolio
+        initial_capital=float(data["initial_capital"]),  # Capital initial
+        lookback_months=int(data["lookback_months"]),  # Période de lookback en mois
+        total_months=int(data["total_months"]),  # Période totale du backtest en mois
+        start_year=int(data["start_year"]),  # Année de début du backtest
+        tickers=data["tickers"],  # Liste des tickers
         target_return=(
             float(data["target_return"]) if data["target_return"] else None
-        ),  # Target return if provided
+        ),  # Rendement cible (optionnel)
     )
 
-    # Step 2: Initialize the PortfolioSimulator with the created config
+    # Étape 2 : Initialise le simulateur de portefeuille avec la configuration
     simulator = PortfolioSimulator(config)
 
-    # Step 3: Run the simulation using the simulator
+    # Étape 3 : Exécute la simulation
     simulator.run_simulation()
 
-    # Step 4: Generate a portfolio performance chart using the simulator's data
+    # Étape 4 : Génère un graphique de performance du portefeuille
     chart = create_portfolio_chart(simulator.portfolio_values, simulator.dates)
 
-    # Step 5: Return summary statistics and the generated chart
+    # Étape 5 : Retourne les statistiques récapitulatives et le graphique
     return simulator.get_summary_statistics(), chart

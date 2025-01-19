@@ -1,55 +1,90 @@
-import yfinance as yf
-import pandas as pd
-from ..config.settings import DEFAULT_RISK_FREE_RATE
-from typing import List
+# Importation des modules nécessaires
+import yfinance as yf  # Pour récupérer les données boursières
+import pandas as pd  # Pour manipuler les données sous forme de DataFrame
+from ..config.settings import DEFAULT_RISK_FREE_RATE  # Taux sans risque par défaut
+from typing import List  # Pour le typage des listes
 
 
 class DataLoader:
-    """Handles data loading and processing operations"""
+    """
+    Classe responsable du chargement et du traitement des données boursières.
+    Elle fournit des méthodes pour :
+    - Charger les prix de clôture des actions.
+    - Calculer les rendements quotidiens.
+    - Récupérer le taux sans risque.
+    """
 
     @staticmethod
     def load_data(tickers: List[str], start_date: str, end_date: str) -> pd.DataFrame:
         """
-        Load closing price data for given tickers
+        Charge les prix de clôture des actions pour une liste de tickers et une période donnée.
 
         Args:
-            tickers: List of stock ticker symbols
-            start_date: Start date in YYYY-MM-DD format
-            end_date: End date in YYYY-MM-DD format
+            tickers (List[str]) : Liste des symboles boursiers (ex: ["AAPL", "MSFT"]).
+            start_date (str) : Date de début au format 'AAAA-MM-JJ'.
+            end_date (str) : Date de fin au format 'AAAA-MM-JJ'.
 
         Returns:
-            DataFrame of closing prices
+            pd.DataFrame : Un DataFrame contenant les prix de clôture des actions.
+
+        Raises:
+            ValueError : Si aucune donnée n'est récupérée ou en cas d'erreur.
         """
         try:
+            # Téléchargement des données boursières via yfinance
             data = yf.download(tickers, start=start_date, end=end_date)
+
+            # Vérification si les données sont vides
             if data.empty:
-                raise ValueError("No data retrieved for the specified period")
+                raise ValueError("Aucune donnée récupérée pour la période spécifiée.")
+
+            # Retourne uniquement les prix de clôture
             return data["Close"]
+
         except Exception as e:
-            raise ValueError(f"Error loading data: {str(e)}")
+            # Gestion des erreurs (ex: problème de connexion, tickers invalides)
+            raise ValueError(f"Erreur lors du chargement des données : {str(e)}")
 
     @staticmethod
     def calculate_daily_returns(prices: pd.DataFrame) -> pd.DataFrame:
-        """Calculate daily returns from price data"""
+        """
+        Calcule les rendements quotidiens à partir des prix de clôture.
+
+        Args:
+            prices (pd.DataFrame) : DataFrame contenant les prix de clôture.
+
+        Returns:
+            pd.DataFrame : Un DataFrame contenant les rendements quotidiens.
+        """
+        # Calcul des rendements quotidiens en pourcentage et suppression des valeurs manquantes
         return prices.pct_change().dropna()
 
     @staticmethod
     def get_risk_free_rate(start_date: str, end_date: str) -> float:
         """
-        Fetch and calculate average risk-free rate from Treasury yield data
-        Returns default rate if data unavailable
+        Récupère le taux sans risque moyen à partir des rendements du Trésor américain (^TNX).
+        Si les données ne sont pas disponibles, retourne un taux par défaut.
+
+        Args:
+            start_date (str) : Date de début au format 'AAAA-MM-JJ'.
+            end_date (str) : Date de fin au format 'AAAA-MM-JJ'.
+
+        Returns:
+            float : Le taux sans risque moyen sous forme décimale (ex: 0.05 pour 5%).
         """
         try:
-            risk_free_data = yf.download("^TNX", start=start_date, end=end_date)
-            if risk_free_data.empty:
-                print(
-                    f"Warning: Using default risk-free rate: {DEFAULT_RISK_FREE_RATE}"
-                )
+            # Téléchargement des données du Trésor américain (^TNX représente l'indice des taux d'intérêt)
+            data = yf.download("^TNX", start=start_date, end=end_date)
+
+            # Si les données sont vides, retourne le taux par défaut
+            if data.empty:
                 return DEFAULT_RISK_FREE_RATE
 
-            average_yield = risk_free_data["Close"].mean() / 100
-            print(f"Risk-Free Rate ({start_date} to {end_date}): {average_yield:.4f}")
-            return average_yield
+            # Calcul de la moyenne des taux de clôture et conversion en pourcentage
+            # Note : Les taux sont donnés en pourcentage (ex: 5.0 pour 5%), donc on divise par 100
+            return float(data["Close"].mean().iloc[0]) / 100
+
         except Exception as e:
-            print(f"Warning: Using default rate due to error: {e}")
+            # En cas d'erreur (ex: problème de connexion, données indisponibles), retourne le taux par défaut
+            print(f"Erreur lors de la récupération du taux sans risque : {e}")
             return DEFAULT_RISK_FREE_RATE

@@ -1,124 +1,184 @@
-from flask import Blueprint, jsonify, request
-from services.market_service import get_correlation_and_clusters
-from services.stock_service import get_stock_data
-from services.portfolio_service import run_optimization, run_backtest
-from services.chart_service import create_portfolio_chart
-from datetime import datetime
-import logging
+from flask import Blueprint, jsonify, request  # Importe les modules Flask nécessaires
+from services.market_service import (
+    get_correlation_and_clusters,
+)  # Importe la fonction d'analyse de corrélation
+from services.stock_service import (
+    get_stock_data,
+)  # Importe la fonction pour récupérer les données boursières
+from services.portfolio_service import (
+    run_optimization,
+    run_backtest,
+)  # Importe les fonctions d'optimisation et de backtest
+from services.chart_service import (
+    create_portfolio_chart,
+)  # Importe la fonction pour créer des graphiques de portefeuille
+from datetime import datetime  # Importe datetime pour gérer les dates
+import logging  # Importe logging pour la journalisation des erreurs
 
-# Initialize Blueprint
+# Initialise le Blueprint pour les routes API
 api_bp = Blueprint("api", __name__)
 
-# Configure logging
+# Configure la journalisation
 logging.basicConfig(level=logging.DEBUG)
 logger = logging.getLogger(__name__)
 
 
 @api_bp.route("/stock-info/<ticker>")
 def get_stock_info(ticker):
+    """
+    Route pour récupérer les informations sur une action spécifique.
+    Args:
+        ticker (str): Symbole boursier (ex: "AAPL").
+    Returns:
+        JSON: Informations de base, graphique des prix et actualités.
+    """
     try:
+        # Récupère les données de l'action
         basic_info, hist_data, price_chart, news = get_stock_data(ticker)
         return jsonify(
-            {"success": True, "info": basic_info, "chart": price_chart, "news": news}
+            {
+                "success": True,
+                "info": basic_info,  # Informations de base
+                "chart": price_chart,  # Graphique des prix
+                "news": news,  # Actualités
+            }
         )
     except Exception as e:
-        logger.error(f"Error fetching stock info for {ticker}: {e}")
-        return jsonify({"success": False, "error": str(e)})
+        logger.error(
+            f"Erreur lors de la récupération des informations pour {ticker} : {e}"
+        )
+        return jsonify(
+            {"success": False, "error": str(e)}
+        )  # Retourne une erreur en cas d'échec
 
 
 @api_bp.route("/optimize-portfolio", methods=["POST"])
 def optimize_portfolio():
+    """
+    Route pour optimiser un portefeuille en fonction des paramètres fournis.
+    Returns:
+        JSON: Résultats de l'optimisation (poids, performances, etc.).
+    """
     try:
-        data = request.json
-        logger.debug(f"Received request data: {data}")
+        data = request.json  # Récupère les données de la requête
+        logger.debug(f"Données reçues : {data}")
 
-        # Validate input data
+        # Valide les champs obligatoires
         required_fields = ["tickers", "initial_capital", "start_date", "end_date"]
         for field in required_fields:
             if field not in data:
                 return jsonify(
-                    {"success": False, "error": f"Missing required field: {field}"}
+                    {"success": False, "error": f"Champ obligatoire manquant : {field}"}
                 )
 
+        # Vérifie que les tickers sont une liste non vide
         if not isinstance(data["tickers"], list) or len(data["tickers"]) == 0:
             return jsonify(
-                {"success": False, "error": "Tickers must be a non-empty array"}
+                {
+                    "success": False,
+                    "error": "Les tickers doivent être une liste non vide",
+                }
             )
 
+        # Exécute l'optimisation du portefeuille
         result = run_optimization(
             data["tickers"],
-            float(data["initial_capital"]),
-            datetime.strptime(data["start_date"], "%Y-%m-%d"),
-            datetime.strptime(data["end_date"], "%Y-%m-%d"),
-            float(data["target_return"]) if data.get("target_return") else None,
+            float(data["initial_capital"]),  # Capital initial
+            datetime.strptime(data["start_date"], "%Y-%m-%d"),  # Date de début
+            datetime.strptime(data["end_date"], "%Y-%m-%d"),  # Date de fin
+            (
+                float(data["target_return"]) if data.get("target_return") else None
+            ),  # Rendement cible (optionnel)
         )
 
-        logger.debug(f"Optimization result: {result}")
+        logger.debug(f"Résultat de l'optimisation : {result}")
 
+        # Vérifie si l'optimisation a retourné des résultats
         if not result:
             return jsonify(
-                {"success": False, "error": "Optimization returned no results"}
+                {
+                    "success": False,
+                    "error": "L'optimisation n'a retourné aucun résultat",
+                }
             )
 
+        # Prépare la réponse
         response = {
             "success": True,
             "result": {
-                "weights": result.get("weights", {}),
-                "performance": result.get("performance", {}),
-                "tickers": result.get("tickers", data["tickers"]),
+                "weights": result.get("weights", {}),  # Poids des actifs
+                "performance": result.get("performance", {}),  # Performances
+                "tickers": result.get("tickers", data["tickers"]),  # Tickers
             },
         }
 
-        logger.debug(f"Sending response: {response}")
+        logger.debug(f"Envoi de la réponse : {response}")
         return jsonify(response)
 
     except Exception as e:
-        logger.error(f"Error optimizing portfolio: {e}")
-        return jsonify({"success": False, "error": str(e)})
+        logger.error(f"Erreur lors de l'optimisation du portefeuille : {e}")
+        return jsonify(
+            {"success": False, "error": str(e)}
+        )  # Retourne une erreur en cas d'échec
 
 
 @api_bp.route("/backtest", methods=["POST"])
 def backtest():
+    """
+    Route pour exécuter un backtest de portefeuille.
+    Returns:
+        JSON: Statistiques récapitulatives et graphique de performance.
+    """
     try:
-        data = request.json
-        summary, chart = run_backtest(data)
+        data = request.json  # Récupère les données de la requête
+        summary, chart = run_backtest(data)  # Exécute le backtest
         return jsonify({"success": True, "summary": summary, "chart": chart})
     except Exception as e:
-        return jsonify({"success": False, "error": str(e)})
+        return jsonify(
+            {"success": False, "error": str(e)}
+        )  # Retourne une erreur en cas d'échec
 
 
 @api_bp.route("/market-correlation", methods=["POST"])
 def get_market_correlation():
+    """
+    Route pour analyser la corrélation et les clusters d'un ensemble d'actions.
+    Returns:
+        JSON: Matrice de corrélation, clusters et graphiques.
+    """
     try:
-        data = request.json
-        logger.debug(f"Received correlation request data: {data}")
+        data = request.json  # Récupère les données de la requête
+        logger.debug(f"Données de corrélation reçues : {data}")
 
-        # Validate input data
+        # Valide les tickers
         if not data.get("tickers") or not isinstance(data["tickers"], list):
-            return jsonify({"success": False, "error": "Invalid tickers provided"})
+            return jsonify({"success": False, "error": "Tickers invalides"})
 
+        # Valide les dates
         if not data.get("start_date") or not data.get("end_date"):
             return jsonify(
-                {"success": False, "error": "Start and end dates are required"}
+                {
+                    "success": False,
+                    "error": "Les dates de début et de fin sont obligatoires",
+                }
             )
 
-        # Import the analysis function here to avoid circular imports
-        from services.market_service import get_correlation_and_clusters
-
-        # Perform correlation and clustering analysis
+        # Effectue l'analyse de corrélation et de clustering
         result = get_correlation_and_clusters(
             data["tickers"], data["start_date"], data["end_date"]
         )
 
-        # Check if the analysis was successful
+        # Vérifie si l'analyse a réussi
         if not result.get("success"):
             return jsonify(result)
 
-        # Return the result of the analysis
+        # Retourne les résultats de l'analyse
         return jsonify(result)
 
     except Exception as e:
-        # Log the error with stack trace
-        logger.error(f"Error in correlation analysis: {str(e)}", exc_info=True)
-        # Return error response
-        return jsonify({"success": False, "error": str(e)})
+        logger.error(
+            f"Erreur lors de l'analyse de corrélation : {str(e)}", exc_info=True
+        )
+        return jsonify(
+            {"success": False, "error": str(e)}
+        )  # Retourne une erreur en cas d'échec

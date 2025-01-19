@@ -1,321 +1,322 @@
-import yfinance as yf
-import pandas as pd
-import plotly.graph_objects as go
-import plotly.express as px
-import numpy as np
-from datetime import datetime
-import logging
-from sklearn.cluster import AffinityPropagation
-from sklearn.preprocessing import StandardScaler
-from sklearn.decomposition import PCA
+import yfinance as yf  # Importe yfinance pour télécharger les données boursières
+import pandas as pd  # Importe pandas pour manipuler les données
+import plotly.graph_objects as go  # Importe Plotly pour créer des graphiques interactifs
+import plotly.express as px  # Importe Plotly Express pour des graphiques simplifiés
+import numpy as np  # Importe numpy pour les calculs numériques
+from datetime import datetime  # Importe datetime pour gérer les dates
+import logging  # Importe logging pour la journalisation des erreurs
+from sklearn.cluster import (
+    AffinityPropagation,
+)  # Importe Affinity Propagation pour le clustering
+from sklearn.preprocessing import (
+    StandardScaler,
+)  # Importe StandardScaler pour normaliser les données
+from sklearn.decomposition import (
+    PCA,
+)  # Importe PCA pour la réduction de dimensionnalité
 
-# Initialize the logger for this module
-logger = logging.getLogger(__name__)  # Create a logger using the module's name
+# Initialise le logger pour ce module
+logger = logging.getLogger(__name__)  # Crée un logger avec le nom du module
 
 
 def convert_to_serializable(obj):
-    """Convert numpy/pandas objects to JSON-serializable types"""
-
-    # If the object is a numpy integer type (int64 or int32), convert it to a native Python integer
+    """
+    Convertit les objets numpy/pandas en types sérialisables en JSON.
+    Args:
+        obj: L'objet à convertir (numpy, pandas, etc.).
+    Returns:
+        L'objet converti en un type sérialisable (int, float, dict, list, etc.).
+    """
+    # Si l'objet est un entier numpy, le convertit en entier Python
     if isinstance(obj, (np.int64, np.int32)):
         return int(obj)
 
-    # If the object is a numpy float type (float64 or float32), convert it to a native Python float
+    # Si l'objet est un float numpy, le convertit en float Python
     elif isinstance(obj, (np.float64, np.float32)):
         return float(obj)
 
-    # If the object is a pandas DataFrame, recursively convert its contents to serializable types
+    # Si l'objet est un DataFrame pandas, convertit chaque colonne en dictionnaire
     elif isinstance(obj, pd.DataFrame):
         return {str(k): convert_to_serializable(v) for k, v in obj.to_dict().items()}
 
-    # If the object is a dictionary, recursively convert each key-value pair to serializable types
+    # Si l'objet est un dictionnaire, convertit chaque clé-valeur
     elif isinstance(obj, dict):
         return {str(k): convert_to_serializable(v) for k, v in obj.items()}
 
-    # If the object is a list, tuple, or numpy ndarray, recursively convert each element to serializable types
+    # Si l'objet est une liste, un tuple ou un ndarray numpy, convertit chaque élément
     elif isinstance(obj, (list, tuple, np.ndarray)):
         return [convert_to_serializable(x) for x in obj]
 
-    # If the object is a pandas Timestamp or a datetime object, convert it to an ISO format string
+    # Si l'objet est un Timestamp pandas ou un datetime, le convertit en chaîne ISO
     elif isinstance(obj, (pd.Timestamp, datetime)):
         return obj.isoformat()
 
-    # For all other types, return the object as is (i.e., it is already serializable)
+    # Pour les autres types, retourne l'objet tel quel (déjà sérialisable)
     return obj
 
 
 def get_correlation_and_clusters(tickers, start_date, end_date):
     """
-    Fetch stock data, calculate correlation matrix, and perform clustering
+    Récupère les données boursières, calcule la matrice de corrélation et effectue un clustering.
+    Args:
+        tickers (list): Liste des symboles boursiers à analyser.
+        start_date (str): Date de début pour les données historiques.
+        end_date (str): Date de fin pour les données historiques.
+    Returns:
+        dict: Résultats de l'analyse (matrice de corrélation, clusters, graphiques, etc.).
     """
     try:
-        # Step 1: Validate and clean tickers by stripping spaces and converting to uppercase
+        # Étape 1 : Nettoie et valide les tickers (supprime les espaces et met en majuscules)
         tickers = [ticker.strip().upper() for ticker in tickers]
 
-        # Initialize empty data structures for storing stock price data and returns
+        # Initialise les structures de données pour stocker les prix et les rendements
         data = pd.DataFrame()
         returns_data = pd.DataFrame()
 
-        # List to track tickers that failed to fetch data
+        # Liste pour suivre les tickers qui ont échoué
         failed_tickers = []
 
-        # Step 2: Download historical stock data for each ticker
+        # Étape 2 : Télécharge les données historiques pour chaque ticker
         for ticker in tickers:
             try:
-                # Fetch stock history for the given ticker using yfinance
+                # Récupère les données historiques avec yfinance
                 stock = yf.Ticker(ticker)
                 hist = stock.history(start=start_date, end=end_date)
 
-                # If no data is available for the ticker, mark it as failed
+                # Si aucune donnée n'est disponible, ajoute le ticker à la liste des échecs
                 if hist.empty:
                     failed_tickers.append(ticker)
                     continue
 
-                # Store the closing price and calculate the daily returns
+                # Stocke le prix de clôture et calcule les rendements quotidiens
                 data[ticker] = hist["Close"]
                 returns_data[ticker] = hist["Close"].pct_change().fillna(0)
             except Exception as e:
-                # Log errors for tickers that failed to fetch data
-                logger.error(f"Error fetching data for {ticker}: {str(e)}")
+                # Log les erreurs pour les tickers qui ont échoué
+                logger.error(
+                    f"Erreur lors de la récupération des données pour {ticker}: {str(e)}"
+                )
                 failed_tickers.append(ticker)
 
-        # Step 3: Check if all tickers failed to fetch data
+        # Étape 3 : Vérifie si tous les tickers ont échoué
         if len(failed_tickers) == len(tickers):
             return {
                 "success": False,
-                "error": "Could not fetch data for any of the provided tickers",
+                "error": "Impossible de récupérer les données pour les tickers fournis",
             }
 
-        # Step 4: If some tickers failed, log a warning
+        # Étape 4 : Log un avertissement si certains tickers ont échoué
         if failed_tickers:
-            logger.warning(f"Failed to fetch data for tickers: {failed_tickers}")
+            logger.warning(
+                f"Échec de récupération des données pour les tickers : {failed_tickers}"
+            )
 
-        # Step 5: Remove failed tickers from the list for further processing
+        # Étape 5 : Supprime les tickers échoués de la liste pour le traitement ultérieur
         tickers = [t for t in tickers if t not in failed_tickers]
 
-        # Step 6: Calculate the correlation matrix for the fetched stock prices
+        # Étape 6 : Calcule la matrice de corrélation pour les prix de clôture
         corr_matrix = data.corr()
 
-        # Step 7: Perform clustering on the stock returns data
+        # Étape 7 : Effectue le clustering sur les rendements
         clustering_results = perform_clustering(returns_data)
 
-        # Step 8: Create visualizations for the correlation matrix and clusters
+        # Étape 8 : Crée les graphiques pour la matrice de corrélation et les clusters
         corr_plot = create_correlation_plot(corr_matrix, clustering_results)
         cluster_plot = create_cluster_plot(returns_data, clustering_results)
 
-        # Step 9: Convert all results to JSON-serializable format for the API response
+        # Étape 9 : Convertit les résultats en format JSON pour la réponse de l'API
         result = {
             "success": True,
             "correlation_matrix": convert_to_serializable(
                 corr_matrix
-            ),  # Serialize correlation matrix
-            "correlation_plot": corr_plot.to_json(),  # Serialize correlation plot
-            "cluster_plot": cluster_plot.to_json(),  # Serialize cluster plot
+            ),  # Matrice de corrélation
+            "correlation_plot": corr_plot.to_json(),  # Graphique de corrélation
+            "cluster_plot": cluster_plot.to_json(),  # Graphique des clusters
             "clusters": convert_to_serializable(
                 clustering_results
-            ),  # Serialize cluster results
-            "failed_tickers": failed_tickers,  # Include tickers that failed
+            ),  # Résultats du clustering
+            "failed_tickers": failed_tickers,  # Tickers ayant échoué
         }
 
         return result
 
     except Exception as e:
-        # Log any unexpected errors and return an error response
-        logger.error(f"Error in analysis: {str(e)}", exc_info=True)
+        # Log les erreurs inattendues et retourne une réponse d'erreur
+        logger.error(f"Erreur lors de l'analyse : {str(e)}", exc_info=True)
         return {"success": False, "error": str(e)}
 
 
 def perform_clustering(returns_data):
     """
-    Perform Affinity Propagation clustering on stock returns.
-    The function groups stocks based on their return patterns and identifies exemplars (central representatives).
+    Effectue un clustering par Affinity Propagation sur les rendements boursiers.
+    Args:
+        returns_data (DataFrame): Données des rendements quotidiens.
+    Returns:
+        dict: Résultats du clustering (labels, nombre de clusters, exemplaires, etc.).
     """
-    # Step 1: Prepare the data for clustering by scaling the returns data
-    # StandardScaler normalizes the data to have mean 0 and variance 1, which helps in clustering
+    # Étape 1 : Normalise les données de rendement pour le clustering
     scaler = StandardScaler()
     scaled_returns = scaler.fit_transform(returns_data)
 
-    # Step 2: Apply Affinity Propagation clustering algorithm
-    # Affinity Propagation automatically finds the number of clusters based on a similarity matrix
-    af = AffinityPropagation(
-        random_state=42, damping=0.9
-    )  # damping parameter helps with stability
-    cluster_labels = af.fit_predict(
-        scaled_returns.T
-    )  # Transpose the returns data to cluster by stocks
+    # Étape 2 : Applique l'algorithme Affinity Propagation
+    af = AffinityPropagation(random_state=42, damping=0.9)  # damping pour la stabilité
+    cluster_labels = af.fit_predict(scaled_returns.T)  # Clustering par actions
 
-    # Step 3: Prepare the clustering results in a JSON-serializable format
+    # Étape 3 : Prépare les résultats du clustering
     clustering_results = {
-        "labels": [
-            int(x) for x in cluster_labels
-        ],  # List of cluster labels for each stock
-        "n_clusters": int(len(set(cluster_labels))),  # Number of unique clusters
-        "clusters": {},  # Dictionary to store stocks in each cluster
-        "exemplars": [],  # List to store exemplars (central representatives)
+        "labels": [int(x) for x in cluster_labels],  # Labels des clusters
+        "n_clusters": int(len(set(cluster_labels))),  # Nombre de clusters
+        "clusters": {},  # Dictionnaire pour stocker les actions par cluster
+        "exemplars": [],  # Liste des exemplaires (centres des clusters)
     }
 
-    # Step 4: Group stocks by their cluster label
+    # Étape 4 : Groupe les actions par cluster
     for i, ticker in enumerate(returns_data.columns):
         cluster_num = int(cluster_labels[i])
         if cluster_num not in clustering_results["clusters"]:
             clustering_results["clusters"][cluster_num] = []
         clustering_results["clusters"][cluster_num].append(
             str(ticker)
-        )  # Add stock ticker to the cluster
+        )  # Ajoute l'action au cluster
 
-        # Step 5: Identify exemplars (cluster centers)
-        # An exemplar is a stock that is the representative of the cluster
+        # Étape 5 : Identifie les exemplaires (centres des clusters)
         if i in af.cluster_centers_indices_:
-            clustering_results["exemplars"].append(
-                str(ticker)
-            )  # Add the exemplar to the list
+            clustering_results["exemplars"].append(str(ticker))  # Ajoute l'exemplaire
 
-    # Step 6: Return the clustering results
+    # Étape 6 : Retourne les résultats du clustering
     return clustering_results
 
 
 def create_correlation_plot(corr_matrix, clustering_results):
     """
-    Create a correlation heatmap with cluster information. The heatmap shows how the stocks are correlated,
-    with the clusters of stocks visually separated using lines.
+    Crée une heatmap de corrélation avec les clusters.
+    Args:
+        corr_matrix (DataFrame): Matrice de corrélation.
+        clustering_results (dict): Résultats du clustering.
+    Returns:
+        go.Figure: Heatmap de corrélation avec séparateurs de clusters.
     """
-    # Step 1: Sort tickers based on their cluster labels
-    # This ensures that stocks within the same cluster are placed together on the heatmap
+    # Étape 1 : Trie les tickers par cluster
     sorted_tickers = []
     for cluster in sorted(clustering_results["clusters"].keys()):
         sorted_tickers.extend(clustering_results["clusters"][cluster])
 
-    # Step 2: Reorder the correlation matrix to match the sorted tickers
-    # This ensures that the correlation values in the heatmap correspond to the sorted tickers
+    # Étape 2 : Réorganise la matrice de corrélation selon l'ordre des clusters
     corr_matrix = corr_matrix.loc[sorted_tickers, sorted_tickers]
 
-    # Step 3: Create the heatmap
+    # Étape 3 : Crée la heatmap
     fig = go.Figure(
         data=go.Heatmap(
-            z=corr_matrix.values,  # Correlation values as the heatmap's data
-            x=corr_matrix.index,  # Stock tickers for the x-axis
-            y=corr_matrix.columns,  # Stock tickers for the y-axis
-            hoverongaps=False,  # Disable hover on empty cells
-            colorscale="RdBu",  # Color scale representing the correlation (red/blue for negative/positive)
-            zmin=-1,  # Minimum correlation value (for color scale)
-            zmax=1,  # Maximum correlation value (for color scale)
+            z=corr_matrix.values,  # Valeurs de corrélation
+            x=corr_matrix.index,  # Tickers sur l'axe x
+            y=corr_matrix.columns,  # Tickers sur l'axe y
+            hoverongaps=False,  # Désactive le survol des cellules vides
+            colorscale="RdBu",  # Échelle de couleurs (rouge/bleu)
+            zmin=-1,  # Valeur minimale de corrélation
+            zmax=1,  # Valeur maximale de corrélation
             text=np.round(
                 corr_matrix.values, decimals=2
-            ),  # Display the correlation values as text in each cell
-            texttemplate="%{text}",  # Format for displaying the text in each cell
-            textfont={"size": 10},  # Set font size for the text in the cells
-            showscale=True,  # Show the color scale on the side
+            ),  # Affiche les valeurs de corrélation
+            texttemplate="%{text}",  # Format du texte
+            textfont={"size": 10},  # Taille de la police
+            showscale=True,  # Affiche l'échelle de couleurs
         )
     )
 
-    # Step 4: Add cluster separators as vertical and horizontal lines
-    # These lines visually separate the clusters on the heatmap
+    # Étape 4 : Ajoute des séparateurs de clusters
     current_pos = 0
     for cluster in sorted(clustering_results["clusters"].keys()):
         cluster_size = len(clustering_results["clusters"][cluster])
         if current_pos > 0:
-            # Add vertical line to separate clusters
+            # Ajoute une ligne verticale
             fig.add_shape(
                 type="line",
-                x0=current_pos
-                - 0.5,  # Position the line at the boundary between clusters
-                x1=current_pos - 0.5,  # Vertical line (same x position)
-                y0=-0.5,  # Start of the line (bottom)
-                y1=len(corr_matrix) - 0.5,  # End of the line (top)
-                line=dict(color="white", width=2),  # White line with specified width
+                x0=current_pos - 0.5,
+                x1=current_pos - 0.5,
+                y0=-0.5,
+                y1=len(corr_matrix) - 0.5,
+                line=dict(color="white", width=2),
             )
-            # Add horizontal line to separate clusters
+            # Ajoute une ligne horizontale
             fig.add_shape(
                 type="line",
-                x0=-0.5,  # Start of the line (left)
-                x1=len(corr_matrix) - 0.5,  # End of the line (right)
-                y0=current_pos
-                - 0.5,  # Position the line at the boundary between clusters
-                y1=current_pos - 0.5,  # Horizontal line (same y position)
-                line=dict(color="white", width=2),  # White line with specified width
+                x0=-0.5,
+                x1=len(corr_matrix) - 0.5,
+                y0=current_pos - 0.5,
+                y1=current_pos - 0.5,
+                line=dict(color="white", width=2),
             )
-        current_pos += cluster_size  # Update position for the next cluster
+        current_pos += cluster_size  # Met à jour la position pour le prochain cluster
 
-    # Step 5: Update layout for the figure
+    # Étape 5 : Met à jour la mise en page de la figure
     fig.update_layout(
-        title="Stock Correlation Matrix (Clustered)",  # Title for the plot
-        xaxis_title="Stocks",  # Label for the x-axis
-        yaxis_title="Stocks",  # Label for the y-axis
-        width=800,  # Width of the plot
-        height=800,  # Height of the plot
-        template="plotly_dark",  # Dark theme for the plot
+        title="Matrice de Corrélation des Actions (Clusters)",  # Titre
+        xaxis_title="Actions",  # Titre de l'axe x
+        yaxis_title="Actions",  # Titre de l'axe y
+        width=800,  # Largeur
+        height=800,  # Hauteur
+        template="plotly_dark",  # Thème sombre
     )
 
-    # Step 6: Return the figure object (the correlation heatmap)
+    # Étape 6 : Retourne la figure
     return fig
 
 
 def create_cluster_plot(returns_data, clustering_results):
     """
-    Create a scatter plot of stocks based on their first two principal components.
-    The plot displays how stocks are grouped into clusters based on their return patterns,
-    with exemplars (cluster centers) highlighted.
+    Crée un graphique des clusters basé sur les deux premières composantes principales.
+    Args:
+        returns_data (DataFrame): Données des rendements.
+        clustering_results (dict): Résultats du clustering.
+    Returns:
+        go.Figure: Graphique des clusters avec les exemplaires mis en évidence.
     """
-
-    # Step 1: Prepare the returns data for visualization
-    # Standardize the returns data before applying PCA to ensure each feature (stock) contributes equally
+    # Étape 1 : Normalise les données de rendement
     scaler = StandardScaler()
     scaled_returns = scaler.fit_transform(returns_data)
 
-    # Step 2: Apply PCA for dimensionality reduction to 2 components
-    # PCA reduces the dimensionality of the data, allowing us to plot stocks in a 2D space
+    # Étape 2 : Applique PCA pour réduire la dimensionnalité à 2 composantes
     pca = PCA(n_components=2)
-    pca_results = pca.fit_transform(
-        scaled_returns.T  # Transpose to ensure we transform stocks, not timestamps
-    )
+    pca_results = pca.fit_transform(scaled_returns.T)  # Clustering par actions
 
-    # Step 3: Create a DataFrame for plotting
-    # The DataFrame holds the principal components for each stock, as well as cluster and exemplar information
+    # Étape 3 : Crée un DataFrame pour le graphique
     plot_df = pd.DataFrame(
         pca_results, columns=["PC1", "PC2"], index=returns_data.columns
     )
-    plot_df["Cluster"] = clustering_results["labels"]  # Add cluster labels
+    plot_df["Cluster"] = clustering_results["labels"]  # Ajoute les labels des clusters
     plot_df["Exemplar"] = plot_df.index.isin(
         clustering_results["exemplars"]
-    )  # Mark exemplars
+    )  # Marque les exemplaires
 
-    # Step 4: Create the scatter plot using Plotly Express
-    # The scatter plot shows the first two principal components (PC1, PC2) on the axes, colored by cluster
+    # Étape 4 : Crée le graphique des clusters avec Plotly Express
     fig = px.scatter(
         plot_df,
-        x="PC1",  # Principal component 1 on x-axis
-        y="PC2",  # Principal component 2 on y-axis
-        color="Cluster",  # Color points by their cluster
-        text=plot_df.index,  # Add stock tickers as text labels
-        title="Stock Clusters based on Return Patterns",  # Title for the plot
-        template="plotly_dark",  # Use the dark theme for the plot
+        x="PC1",  # Composante principale 1
+        y="PC2",  # Composante principale 2
+        color="Cluster",  # Couleur par cluster
+        text=plot_df.index,  # Tickers comme étiquettes
+        title="Clusters d'Actions basés sur les Rendements",  # Titre
+        template="plotly_dark",  # Thème sombre
     )
 
-    # Step 5: Highlight the exemplars (cluster centers)
-    # Exemplars are the "center" stocks of each cluster, and we mark them with a star shape
-    exemplar_df = plot_df[plot_df["Exemplar"]]  # Filter to get the exemplars
+    # Étape 5 : Met en évidence les exemplaires (centres des clusters)
+    exemplar_df = plot_df[plot_df["Exemplar"]]
     fig.add_trace(
         go.Scatter(
-            x=exemplar_df["PC1"],  # PC1 for exemplars on x-axis
-            y=exemplar_df["PC2"],  # PC2 for exemplars on y-axis
-            mode="markers",  # Display as markers
-            marker=dict(
-                symbol="star", size=15, line=dict(color="white", width=2)
-            ),  # Star symbol with white border
-            name="Cluster Centers",  # Name for the legend
-            showlegend=True,  # Display this trace in the legend
+            x=exemplar_df["PC1"],
+            y=exemplar_df["PC2"],
+            mode="markers",
+            marker=dict(symbol="star", size=15, line=dict(color="white", width=2)),
+            name="Centres des Clusters",
+            showlegend=True,
         )
     )
 
-    # Step 6: Update the trace settings for better display
-    fig.update_traces(
-        textposition="top center", marker=dict(size=10)
-    )  # Position text labels and set marker size
+    # Étape 6 : Met à jour les paramètres des traces
+    fig.update_traces(textposition="top center", marker=dict(size=10))
 
-    # Step 7: Update layout settings for the plot
-    fig.update_layout(
-        width=800, height=600, showlegend=True
-    )  # Set plot size and show the legend
+    # Étape 7 : Met à jour la mise en page
+    fig.update_layout(width=800, height=600, showlegend=True)
 
-    # Step 8: Return the figure
+    # Étape 8 : Retourne la figure
     return fig

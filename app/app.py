@@ -2,15 +2,15 @@ from flask import Flask
 from routes.main_routes import main_bp
 from routes.api_routes import api_bp
 
-# Create a Flask application instance
+# Crée une instance de l'application Flask
 app = Flask(__name__)
 
-# Register the main blueprint
+# Enregistre le blueprint pour les routes principales
 app.register_blueprint(main_bp)
 
-# Register the API blueprint with a URL prefix of /api
+# Enregistre le blueprint pour les routes API avec le préfixe "/api"
 app.register_blueprint(api_bp, url_prefix="/api")
 
-# Run the application in debug mode if this script is executed directly
+# Si le script est exécuté directement, lance l'application en mode debug
 if __name__ == "__main__":
     app.run(debug=True)
