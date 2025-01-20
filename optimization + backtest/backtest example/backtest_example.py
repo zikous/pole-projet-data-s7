@@ -20,14 +20,23 @@ def main():
     # Chaque configuration représente un scénario différent (stabilité, crise, croissance, etc.)
 
     # Configuration 1 : Portefeuille tech moderne (post-crise financière)
-    # config = PortfolioConfig(
-    #     initial_capital=100000,  # Capital initial de $100,000
-    #     lookback_months=6,  # 6 mois de données historiques
-    #     total_months=12 * 3,  # 3 ans de simulation
-    #     start_year=2021,  # Début en 2021
-    #     tickers=["AAPL", "MSFT", "GOOGL", "AMZN", "NVDA", "META", "TSLA", "AMD"],  # Actifs tech
-    #     target_return=0.15,  # Rendement cible de 15%
-    # )
+    config = PortfolioConfig(
+        initial_capital=100000,  # Capital initial de $100,000
+        lookback_months=6,  # 6 mois de données historiques
+        total_months=12 * 4,  # 3 ans de simulation
+        start_year=2021,  # Début en 2021
+        tickers=[
+            "AAPL",
+            "MSFT",
+            "GOOGL",
+            "AMZN",
+            "NVDA",
+            "META",
+            "TSLA",
+            "AMD",
+        ],  # Actifs tech
+        target_return=0.15,  # Rendement cible de 15%
+    )
 
     # Configuration 2 : Portefeuille pendant la crise financière de 2008
     # config = PortfolioConfig(
@@ -80,21 +89,21 @@ def main():
     #     target_return=0.10,  # Rendement cible modéré de 10%
     # )
 
-    # Configuration 5 : Portefeuille de défense (2000-2005, période de conflits)
-    config = PortfolioConfig(
-        initial_capital=100000,  # Capital initial de $100,000
-        lookback_months=12,  # 1 an de données historiques
-        total_months=12 * 5,  # 5 ans de simulation
-        start_year=2000,  # Début avant la guerre en Irak
-        tickers=[  # Entreprises de défense et d'armement
-            "LMT",  # Lockheed Martin
-            "BA",  # Boeing
-            "RTX",  # Raytheon Technologies
-            "GD",  # General Dynamics
-            "NOC",  # Northrop Grumman
-        ],
-        target_return=0.10,  # Rendement cible de 10%
-    )
+    # # Configuration 5 : Portefeuille de défense (2000-2005, période de conflits)
+    # config = PortfolioConfig(
+    #     initial_capital=100000,  # Capital initial de $100,000
+    #     lookback_months=12,  # 1 an de données historiques
+    #     total_months=12 * 5,  # 5 ans de simulation
+    #     start_year=2000,  # Début avant la guerre en Irak
+    #     tickers=[  # Entreprises de défense et d'armement
+    #         "LMT",  # Lockheed Martin
+    #         "BA",  # Boeing
+    #         "RTX",  # Raytheon Technologies
+    #         "GD",  # General Dynamics
+    #         "NOC",  # Northrop Grumman
+    #     ],
+    #     target_return=0.10,  # Rendement cible de 10%
+    # )
 
     try:
         # Initialisation du simulateur avec la configuration choisie
